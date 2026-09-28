@@ -7,6 +7,7 @@ import {
   LogOut,
   Monitor,
   Plus,
+  Printer,
   RotateCcw,
   Save,
   Trash2,
@@ -698,12 +699,69 @@ function App() {
 
             <div className="bottom">
               <button className="secondary" onClick={clearDuty}>Новый чистый наряд</button>
-              <button className="primary action-button" onClick={saveDuty}><Save size={18} /> Сохранить в архив</button>
+              <div className="actions">
+                <button className="secondary" onClick={() => window.print()}>
+                  <Printer size={18} /> Печать
+                </button>
+                <button className="primary action-button" onClick={saveDuty}>
+                  <Save size={18} /> Сохранить в архив
+                </button>
+              </div>
             </div>
           </>
         )}
       </main>
+
+      {tab === "duty" && (
+        <PrintView
+          date={date}
+          dispatcher={dispatcher}
+          crews={crews}
+        />
+      )}
     </>
+  );
+}
+
+function PrintView({ date, dispatcher, crews }) {
+  return (
+    <div className="print">
+      <h1>НАРЯД БРИГАД СКОРОЙ МЕДИЦИНСКОЙ ПОМОЩИ</h1>
+      <div className="print-meta">
+        <span>Дата: <b>{formatDutyDate(date)}</b></span>
+        <span>Наряд составил: <b>{dispatcher || "—"}</b></span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Бригада</th>
+            <th>Фельдшеры</th>
+            <th>Режим</th>
+            <th>Водители</th>
+            <th>Режим</th>
+          </tr>
+        </thead>
+        <tbody>
+          {crews.map((crew) => (
+            <tr key={crew.id}>
+              <td>{crew.id}</td>
+              <td>{crew.paramedics.map((person) => <div key={person.id}>{person.name || "—"}</div>)}</td>
+              <td>{crew.paramedics.map((person) => (
+                <div key={person.id}>
+                  {person.name ? (person.shift === "24" ? "24 ч." : person.shift === "day" ? "день" : "ночь") : "—"}
+                </div>
+              ))}</td>
+              <td>{crew.drivers.map((person) => <div key={person.id}>{person.name || "—"}</div>)}</td>
+              <td>{crew.drivers.map((person) => (
+                <div key={person.id}>
+                  {person.name ? (person.shift === "day" ? "день" : "ночь") : "—"}
+                </div>
+              ))}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
