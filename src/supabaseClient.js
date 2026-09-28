@@ -119,7 +119,21 @@ export async function profile(token) {
 export const db = {
   staff: {
     list: (token) =>
-      request("/rest/v1/staff?select=*&active=eq.true&order=full_name.asc", {}, token)
+      request("/rest/v1/staff?select=*&active=eq.true&order=full_name.asc", {}, token),
+
+    add: (row, token) =>
+      request("/rest/v1/staff", {
+        method: "POST",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify(row)
+      }, token),
+
+    update: (id, patch, token) =>
+      request(`/rest/v1/staff?id=eq.${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify(patch)
+      }, token)
   },
 
   duties: {
