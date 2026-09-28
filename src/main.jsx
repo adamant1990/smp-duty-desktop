@@ -398,6 +398,7 @@ function App() {
   const [date, setDate] = useState(tomorrow());
   const [dispatcher, setDispatcher] = useState("");
   const [crews, setCrews] = useState(newCrews);
+  const [printPreview, setPrintPreview] = useState(false);
 
   useEffect(() => {
     restoreSession()
@@ -700,7 +701,7 @@ function App() {
             <div className="bottom">
               <button className="secondary" onClick={clearDuty}>Новый чистый наряд</button>
               <div className="actions">
-                <button className="secondary" onClick={() => window.print()}>
+                <button className="secondary" onClick={() => setPrintPreview(true)}>
                   <Printer size={18} /> Печать
                 </button>
                 <button className="primary action-button" onClick={saveDuty}>
@@ -720,6 +721,32 @@ function App() {
         />
       )}
     </>
+  );
+}
+
+function PrintPreview({ date, dispatcher, crews, onClose }) {
+  return (
+    <div className="print-preview-overlay">
+      <div className="print-preview-window">
+        <div className="print-preview-toolbar">
+          <div>
+            <strong>Предварительный просмотр печати</strong>
+            <span>A4 · портретная ориентация</span>
+          </div>
+          <div className="print-preview-actions">
+            <button className="secondary" onClick={onClose}>Закрыть</button>
+            <button className="primary" onClick={() => window.print()}>
+              <Printer size={17} /> Печать
+            </button>
+          </div>
+        </div>
+        <div className="print-preview-canvas">
+          <div className="print-preview-page">
+            <PrintView date={date} dispatcher={dispatcher} crews={crews} />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
