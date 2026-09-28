@@ -126,6 +126,13 @@ export const db = {
     list: (token) =>
       request("/rest/v1/duties?select=*&order=duty_date.desc,created_at.desc", {}, token),
 
+    findByDate: (date, token) =>
+      request(
+        `/rest/v1/duties?duty_date=eq.${encodeURIComponent(date)}&select=id,duty_date&limit=1`,
+        {},
+        token
+      ),
+
     add: (row, token) =>
       request("/rest/v1/duties", {
         method: "POST",
