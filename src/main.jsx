@@ -540,8 +540,28 @@ function App() {
     setError("");
     setMessage("");
 
+    const enteredParamedics = crews.flatMap((crew) =>
+      crew.paramedics.filter((person) => person.name)
+    );
+
+    if (!enteredParamedics.length) {
+      setError("Наряд не сохранён: укажите хотя бы одного фельдшера.");
+      return;
+    }
+
+    if (warnings.length > 0) {
+      setError("Наряд не сохранён: сначала исправьте дублирующиеся назначения.");
+      return;
+    }
+
     try {
       const token = session.access_token;
+
+      const existing = await db.duties.findByDate(date, token);
+      if (existing?.length) {
+        setError(`На ${formatDutyDate(date)} наряд уже существует в архиве. Выберите другую дату или откройте существующий наряд в архиве.`);
+        return;
+      }
       const dispatcherId = staff.find(
         (item) => item.role === "dispatcher" && item.full_name === dispatcher
       )?.id || null;
@@ -703,7 +723,7 @@ function App() {
                 <button className="secondary" onClick={() => window.desktopApp?.print?.()}>
                   <Printer size={18} /> Печать
                 </button>
-                <button className="primary action-button" onClick={saveDuty}>
+                <button className="primary action-button" onClick={saveDuty} disabled={loading}>
                   <Save size={18} /> Сохранить в архив
                 </button>
               </div>
