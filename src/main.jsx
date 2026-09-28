@@ -1,14 +1,19 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { LogIn, Monitor, Plus, Save, LogOut, X } from "lucide-react";
-import "./styles.css";
 import {
-  db,
-  profile,
-  restoreSession,
-  signIn,
-  signOut
-} from "./supabaseClient";
+  Archive,
+  ClipboardList,
+  LogIn,
+  LogOut,
+  Monitor,
+  Plus,
+  RotateCcw,
+  Save,
+  Trash2,
+  X
+} from "lucide-react";
+import "./styles.css";
+import { db, profile, restoreSession, signIn, signOut } from "./supabaseClient";
 
 const uid = () => crypto.randomUUID();
 
@@ -17,6 +22,18 @@ const tomorrow = () => {
   d.setDate(d.getDate() + 1);
   return d.toISOString().slice(0, 10);
 };
+
+const formatDutyDate = (value) =>
+  new Date(value + "T00:00:00").toLocaleDateString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  });
+
+const formatDay = (value) =>
+  new Date(value + "T00:00:00").toLocaleDateString("ru-RU", {
+    weekday: "long"
+  });
 
 const newCrew = (number) => ({
   id: number,
@@ -68,26 +85,14 @@ function Login({ onReady }) {
         <form onSubmit={submit}>
           <label>
             Email
-            <input
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@example.com"
-            />
+            <input type="email" autoComplete="username" required value={email}
+              onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" />
           </label>
 
           <label>
             Пароль
-            <input
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Введите пароль"
-            />
+            <input type="password" autoComplete="current-password" required value={password}
+              onChange={(e) => setPassword(e.target.value)} placeholder="Введите пароль" />
           </label>
 
           {error && <div className="warning">{error}</div>}
@@ -110,9 +115,7 @@ function SearchSelect({ value, list, placeholder, onChange }) {
 
   const options = useMemo(
     () => (query
-      ? list.filter((name) =>
-          name.toLowerCase().includes(query.toLowerCase())
-        )
+      ? list.filter((name) => name.toLowerCase().includes(query.toLowerCase()))
       : list
     ).slice(0, 8),
     [query, list]
@@ -136,16 +139,13 @@ function SearchSelect({ value, list, placeholder, onChange }) {
       {open && options.length > 0 && (
         <div className="suggestions">
           {options.map((name) => (
-            <button
-              type="button"
-              key={name}
+            <button type="button" key={name}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 setQuery(name);
                 onChange(name);
                 setOpen(false);
-              }}
-            >
+              }}>
               {name}
             </button>
           ))}
@@ -168,10 +168,7 @@ function CrewCard({ crew, paramedics, drivers, onChange }) {
   function addParamedic() {
     onChange({
       ...crew,
-      paramedics: [
-        ...crew.paramedics,
-        { id: uid(), name: "", shift: "24" }
-      ]
+      paramedics: [...crew.paramedics, { id: uid(), name: "", shift: "24" }]
     });
   }
 
@@ -196,75 +193,36 @@ function CrewCard({ crew, paramedics, drivers, onChange }) {
         {crew.paramedics.map((person, index) => (
           <div className="row" key={person.id}>
             <div className="role">Фельдшер {index + 1}</div>
-
-            <SearchSelect
-              value={person.name}
-              list={paramedics}
+            <SearchSelect value={person.name} list={paramedics}
               placeholder="Начните вводить фамилию"
-              onChange={(name) =>
-                updateMember("paramedics", person.id, { name })
-              }
-            />
-
-            <select
-              value={person.shift}
-              onChange={(e) =>
-                updateMember("paramedics", person.id, {
-                  shift: e.target.value
-                })
-              }
-            >
+              onChange={(name) => updateMember("paramedics", person.id, { name })} />
+            <select value={person.shift}
+              onChange={(e) => updateMember("paramedics", person.id, { shift: e.target.value })}>
               <option value="24">24 часа</option>
               <option value="day">День</option>
               <option value="night">Ночь</option>
             </select>
-
-            {crew.paramedics.length > 1 ? (
-              <button
-                className="icon-btn"
-                title="Удалить"
-                onClick={() => removeParamedic(person.id)}
-              >
-                <X size={17} />
-              </button>
-            ) : <span />}
+            {crew.paramedics.length > 1
+              ? <button className="icon-btn" title="Удалить" onClick={() => removeParamedic(person.id)}><X size={17} /></button>
+              : <span />}
           </div>
         ))}
 
         {crew.paramedics.length < 4 && (
-          <button className="add" onClick={addParamedic}>
-            <Plus size={16} />
-            Добавить фельдшера
-          </button>
+          <button className="add" onClick={addParamedic}><Plus size={16} /> Добавить фельдшера</button>
         )}
 
         {crew.drivers.map((person, index) => (
           <div className="row driver" key={person.id}>
-            <div className="role">
-              Водитель {index === 0 ? "день" : "ночь"}
-            </div>
-
-            <SearchSelect
-              value={person.name}
-              list={drivers}
+            <div className="role">Водитель {index === 0 ? "день" : "ночь"}</div>
+            <SearchSelect value={person.name} list={drivers}
               placeholder="Начните вводить фамилию"
-              onChange={(name) =>
-                updateMember("drivers", person.id, { name })
-              }
-            />
-
-            <select
-              value={person.shift}
-              onChange={(e) =>
-                updateMember("drivers", person.id, {
-                  shift: e.target.value
-                })
-              }
-            >
+              onChange={(name) => updateMember("drivers", person.id, { name })} />
+            <select value={person.shift}
+              onChange={(e) => updateMember("drivers", person.id, { shift: e.target.value })}>
               <option value="day">День</option>
               <option value="night">Ночь</option>
             </select>
-
             <span />
           </div>
         ))}
@@ -273,12 +231,167 @@ function CrewCard({ crew, paramedics, drivers, onChange }) {
   );
 }
 
+function ArchivePage({ items, onCopy, onDelete, admin, loading }) {
+  const [selected, setSelected] = useState(null);
+
+  const sorted = [...items].sort((a, b) => b.date.localeCompare(a.date));
+
+  const weeks = sorted.reduce((acc, item) => {
+    const d = new Date(item.date + "T00:00:00");
+    const day = (d.getDay() + 6) % 7;
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - day);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const key = monday.toISOString().slice(0, 10);
+
+    if (!acc[key]) {
+      acc[key] = {
+        key,
+        label:
+          monday.toLocaleDateString("ru-RU", { day: "2-digit", month: "long" }) +
+          " — " +
+          sunday.toLocaleDateString("ru-RU", { day: "2-digit", month: "long", year: "numeric" }),
+        items: []
+      };
+    }
+
+    acc[key].items.push(item);
+    return acc;
+  }, {});
+
+  const weekList = Object.values(weeks);
+
+  return (
+    <div className="archive-page">
+      <div className="page-heading">
+        <h1>Наряды</h1>
+        <p>Сохранённые наряды из общей базы.</p>
+      </div>
+
+      {loading ? (
+        <div className="empty">Загрузка архива…</div>
+      ) : !items.length ? (
+        <div className="empty">
+          <Archive size={38} />
+          <h2>Нарядов пока нет</h2>
+          <p>Сохраните первый наряд.</p>
+        </div>
+      ) : (
+        <div className="archive-weeks">
+          {weekList.map((week) => (
+            <section className="archive-week" key={week.key}>
+              <div className="archive-week-title">
+                <b>▼ {week.label}</b>
+                <span>{week.items.length} {week.items.length === 1 ? "наряд" : "наряда"}</span>
+              </div>
+
+              <div className="archive-week-list">
+                {week.items.map((item) => (
+                  <article className="archive-card" key={item.id}
+                    onClick={() => setSelected(item)}>
+                    <div className="archive-main">
+                      <div className="archive-date">{formatDutyDate(item.date)}</div>
+                      <div className="archive-info">
+                        <b>{formatDay(item.date)}</b>
+                        <span>{item.crews.length} бригад · Составил: {item.dispatcher || "—"}</span>
+                      </div>
+                    </div>
+
+                    <div className="archive-actions">
+                      <button className="secondary" onClick={(e) => {
+                        e.stopPropagation();
+                        setSelected(item);
+                      }}>
+                        <ClipboardList size={16} /> Открыть
+                      </button>
+
+                      <button className="secondary" onClick={(e) => {
+                        e.stopPropagation();
+                        onCopy(item);
+                      }}>
+                        <RotateCcw size={16} /> Копировать
+                      </button>
+
+                      {admin && (
+                        <button className="danger" title="Удалить" onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(item.id);
+                        }}>
+                          <Trash2 size={17} />
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
+
+      {selected && (
+        <div className="archive-overlay" onClick={() => setSelected(null)}>
+          <div className="archive-preview" onClick={(e) => e.stopPropagation()}>
+            <div className="archive-preview-head">
+              <div>
+                <b>{formatDutyDate(selected.date)}</b>
+                <span>{formatDay(selected.date)}</span>
+              </div>
+              <button className="icon-btn" onClick={() => setSelected(null)}><X size={20} /></button>
+            </div>
+
+            <div className="archive-preview-list">
+              {selected.crews.map((crew) => (
+                <div className="archive-preview-crew" key={crew.id}>
+                  <div className="archive-preview-number">№ {crew.id}</div>
+
+                  <div className="archive-preview-person">
+                    <span>ФЕЛЬДШЕРЫ</span>
+                    {crew.paramedics.length
+                      ? crew.paramedics.map((person) => (
+                        <b key={person.id}>{person.name || "—"} <em>{person.shift}</em></b>
+                      ))
+                      : <b>—</b>}
+                  </div>
+
+                  <div className="archive-preview-person">
+                    <span>ВОДИТЕЛИ</span>
+                    {crew.drivers.length
+                      ? crew.drivers.map((person) => (
+                        <b key={person.id}>{person.name || "—"} <em>{person.shift}</em></b>
+                      ))
+                      : <b>—</b>}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="archive-preview-footer">
+              <span>Составил: {selected.dispatcher || "—"}</span>
+              <button className="primary" onClick={() => {
+                onCopy(selected);
+                setSelected(null);
+              }}>
+                <RotateCcw size={17} /> Копировать наряд
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function App() {
   const [session, setSession] = useState(null);
   const [checked, setChecked] = useState(false);
   const [profileData, setProfileData] = useState(null);
   const [staff, setStaff] = useState([]);
+  const [archive, setArchive] = useState([]);
+  const [tab, setTab] = useState("duty");
   const [loading, setLoading] = useState(false);
+  const [archiveLoading, setArchiveLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [date, setDate] = useState(tomorrow());
@@ -292,12 +405,63 @@ function App() {
       .finally(() => setChecked(true));
   }, []);
 
+  const loadArchive = async (token = session?.access_token) => {
+    if (!token) return;
+
+    setArchiveLoading(true);
+
+    try {
+      const [duties, st] = await Promise.all([
+        db.duties.list(token),
+        staff.length ? Promise.resolve(staff) : db.staff.list(token)
+      ]);
+
+      const crewGroups = await Promise.all(
+        (duties || []).map((duty) => db.crews.list(duty.id, token))
+      );
+
+      const allCrews = crewGroups.flat();
+      const members = await db.members.list(allCrews.map((crew) => crew.id), token);
+      const staffMap = Object.fromEntries((st || []).map((person) => [person.id, person.full_name]));
+
+      const items = (duties || []).map((duty, index) => ({
+        id: duty.id,
+        date: duty.duty_date,
+        dispatcher: staffMap[duty.dispatcher_id] || "—",
+        savedAt: duty.created_at,
+        crews: (crewGroups[index] || []).map((crew) => ({
+          id: crew.brigade_number,
+          paramedics: members
+            .filter((member) => member.crew_id === crew.id && member.position === "paramedic")
+            .map((member) => ({
+              id: uid(),
+              name: staffMap[member.staff_id] || "",
+              shift: member.shift
+            })),
+          drivers: members
+            .filter((member) => member.crew_id === crew.id && member.position === "driver")
+            .map((member) => ({
+              id: uid(),
+              name: staffMap[member.staff_id] || "",
+              shift: member.shift
+            }))
+        }))
+      }));
+
+      setArchive(items);
+    } catch (err) {
+      setError(err?.message || "Не удалось загрузить архив.");
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!session?.access_token) return;
 
     let active = true;
 
-    async function load() {
+    async function loadBase() {
       setLoading(true);
       setError("");
 
@@ -311,11 +475,13 @@ function App() {
 
         setProfileData(p);
         setStaff(st || []);
+        setDispatcher((current) =>
+          current ||
+          (st || []).find((item) => item.role === "dispatcher")?.full_name ||
+          ""
+        );
 
-        const firstDispatcher =
-          (st || []).find((item) => item.role === "dispatcher")?.full_name || "";
-
-        setDispatcher((current) => current || firstDispatcher);
+        await loadArchive(session.access_token);
       } catch (err) {
         if (active) setError(err?.message || "Не удалось загрузить данные.");
       } finally {
@@ -323,24 +489,21 @@ function App() {
       }
     }
 
-    load();
+    loadBase();
 
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [session]);
 
-  const paramedics = staff
-    .filter((item) => item.role === "paramedic")
-    .map((item) => item.full_name);
+  useEffect(() => {
+    if (session?.access_token && tab === "archive") {
+      loadArchive(session.access_token);
+    }
+  }, [tab]);
 
-  const drivers = staff
-    .filter((item) => item.role === "driver")
-    .map((item) => item.full_name);
-
-  const dispatchers = staff
-    .filter((item) => item.role === "dispatcher")
-    .map((item) => item.full_name);
+  const paramedics = staff.filter((item) => item.role === "paramedic").map((item) => item.full_name);
+  const drivers = staff.filter((item) => item.role === "driver").map((item) => item.full_name);
+  const dispatchers = staff.filter((item) => item.role === "dispatcher").map((item) => item.full_name);
+  const admin = profileData?.role === "admin";
 
   const warnings = useMemo(() => {
     const seen = new Map();
@@ -349,12 +512,8 @@ function App() {
     crews.forEach((crew) => {
       [...crew.paramedics, ...crew.drivers].forEach((person) => {
         if (!person.name) return;
-
         if (seen.has(person.name)) {
-          result.push(
-            person.name + ": бригады №" +
-            seen.get(person.name) + " и №" + crew.id
-          );
+          result.push(`${person.name}: бригады №${seen.get(person.name)} и №${crew.id}`);
         } else {
           seen.set(person.name, crew.id);
         }
@@ -365,11 +524,7 @@ function App() {
   }, [crews]);
 
   function updateCrew(nextCrew) {
-    setCrews((current) =>
-      current.map((crew) =>
-        crew.id === nextCrew.id ? nextCrew : crew
-      )
-    );
+    setCrews((current) => current.map((crew) => crew.id === nextCrew.id ? nextCrew : crew));
   }
 
   function clearDuty() {
@@ -386,69 +541,70 @@ function App() {
 
     try {
       const token = session.access_token;
-      const dispatcherId =
-        staff.find(
-          (item) =>
-            item.role === "dispatcher" &&
-            item.full_name === dispatcher
-        )?.id || null;
+      const dispatcherId = staff.find(
+        (item) => item.role === "dispatcher" && item.full_name === dispatcher
+      )?.id || null;
 
-      const duty = (
-        await db.duties.add(
-          {
-            duty_date: date,
-            dispatcher_id: dispatcherId,
-            created_by: session.user.id
-          },
-          token
-        )
-      )[0];
+      const duty = (await db.duties.add({
+        duty_date: date,
+        dispatcher_id: dispatcherId,
+        created_by: session.user.id
+      }, token))[0];
 
       for (const crewData of crews) {
-        const crew = (
-          await db.crews.add(
-            {
-              duty_id: duty.id,
-              brigade_number: crewData.id,
-              brigade_type: "Линейная фельдшерская"
-            },
-            token
-          )
-        )[0];
+        const crew = (await db.crews.add({
+          duty_id: duty.id,
+          brigade_number: crewData.id,
+          brigade_type: "Линейная фельдшерская"
+        }, token))[0];
 
         const members = [
-          ...crewData.paramedics
-            .filter((item) => item.name)
-            .map((item) => ({
-              crew_id: crew.id,
-              staff_id: staff.find(
-                (person) =>
-                  person.role === "paramedic" &&
-                  person.full_name === item.name
-              )?.id,
-              position: "paramedic",
-              shift: item.shift
-            })),
-          ...crewData.drivers
-            .filter((item) => item.name)
-            .map((item) => ({
-              crew_id: crew.id,
-              staff_id: staff.find(
-                (person) =>
-                  person.role === "driver" &&
-                  person.full_name === item.name
-              )?.id,
-              position: "driver",
-              shift: item.shift
-            }))
+          ...crewData.paramedics.filter((item) => item.name).map((item) => ({
+            crew_id: crew.id,
+            staff_id: staff.find((person) => person.role === "paramedic" && person.full_name === item.name)?.id,
+            position: "paramedic",
+            shift: item.shift
+          })),
+          ...crewData.drivers.filter((item) => item.name).map((item) => ({
+            crew_id: crew.id,
+            staff_id: staff.find((person) => person.role === "driver" && person.full_name === item.name)?.id,
+            position: "driver",
+            shift: item.shift
+          }))
         ].filter((item) => item.staff_id);
 
         await db.members.addMany(members, token);
       }
 
+      await loadArchive(token);
       setMessage("Наряд сохранён в общей базе Supabase.");
     } catch (err) {
       setError(err?.message || "Не удалось сохранить наряд.");
+    }
+  }
+
+  function copyDuty(item) {
+    setDate(tomorrow());
+    setDispatcher(item.dispatcher === "—" ? "" : item.dispatcher);
+    setCrews(item.crews.map((crew) => ({
+      ...crew,
+      paramedics: crew.paramedics.map((person) => ({ ...person, id: uid() })),
+      drivers: crew.drivers.map((person) => ({ ...person, id: uid() }))
+    })));
+    setTab("duty");
+    setMessage("Наряд загружен на завтрашнюю дату. Проверьте состав и сохраните.");
+  }
+
+  async function deleteDuty(id) {
+    if (!window.confirm("Удалить этот наряд из архива?")) return;
+
+    setError("");
+    try {
+      await db.duties.remove(id, session.access_token);
+      setArchive((items) => items.filter((item) => item.id !== id));
+      setMessage("Наряд удалён из архива.");
+    } catch (err) {
+      setError(err?.message || "Не удалось удалить наряд.");
     }
   }
 
@@ -457,17 +613,11 @@ function App() {
     setSession(null);
     setProfileData(null);
     setStaff([]);
+    setArchive([]);
   }
 
   if (!checked) {
-    return (
-      <main className="loading-page">
-        <div>
-          <Monitor size={28} />
-          <strong>Проверка авторизации…</strong>
-        </div>
-      </main>
-    );
+    return <main className="loading-page"><div><Monitor size={28} /><strong>Проверка авторизации…</strong></div></main>;
   }
 
   if (!session) return <Login onReady={setSession} />;
@@ -477,104 +627,86 @@ function App() {
       <header className="topbar">
         <div className="brand">
           <div className="brandMark">СМП</div>
-          <div>
-            <b>Наряд бригад</b>
-            <span>компьютерная версия · общая база</span>
-          </div>
+          <div><b>Наряд бригад</b><span>компьютерная версия · общая база</span></div>
         </div>
 
         <div className="top-actions">
-          <span className="user-name">
-            {profileData?.full_name || session.user?.email}
-          </span>
-          <button className="tab" onClick={logout}>
-            <LogOut size={17} />
-            Выйти
+          <button className={`tab ${tab === "duty" ? "active" : ""}`} onClick={() => setTab("duty")}>
+            <ClipboardList size={17} /> Наряд
           </button>
+          <button className={`tab ${tab === "archive" ? "active" : ""}`} onClick={() => setTab("archive")}>
+            <Archive size={17} /> Архив
+          </button>
+          <span className="user-name">{profileData?.full_name || session.user?.email}</span>
+          <button className="tab" onClick={logout}><LogOut size={17} /> Выйти</button>
         </div>
       </header>
 
       <main className="page">
-        {loading && (
-          <div className="info">Загрузка сотрудников из общей базы…</div>
-        )}
-
+        {loading && <div className="info">Загрузка сотрудников и архива из общей базы…</div>}
         {error && <div className="warning">{error}</div>}
         {message && <div className="success-message">{message}</div>}
 
-        <section className="hero">
-          <div>
-            <h1>Новый наряд</h1>
-            <p>Заполните состав 8 линейных фельдшерских бригад.</p>
-          </div>
+        {tab === "archive" ? (
+          <ArchivePage
+            items={archive}
+            onCopy={copyDuty}
+            onDelete={deleteDuty}
+            admin={admin}
+            loading={archiveLoading}
+          />
+        ) : (
+          <>
+            <section className="hero">
+              <div>
+                <h1>Новый наряд</h1>
+                <p>Заполните состав 8 линейных фельдшерских бригад.</p>
+              </div>
 
-          <div className="header-fields">
-            <label>
-              Дата наряда
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </label>
+              <div className="header-fields">
+                <label>
+                  Дата наряда
+                  <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                </label>
 
-            <label>
-              Наряд составил
-              <select
-                value={dispatcher}
-                onChange={(e) => setDispatcher(e.target.value)}
-              >
-                <option value="">— выберите —</option>
-                {dispatchers.map((name) => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </section>
+                <label>
+                  Наряд составил
+                  <select value={dispatcher} onChange={(e) => setDispatcher(e.target.value)}>
+                    <option value="">— выберите —</option>
+                    {dispatchers.map((name) => <option key={name} value={name}>{name}</option>)}
+                  </select>
+                </label>
+              </div>
+            </section>
 
-        {warnings.length > 0 && (
-          <div className="warning">
-            <b>Проверьте назначения</b>
-            {warnings.map((item) => <div key={item}>⚠ {item}</div>)}
-          </div>
+            {warnings.length > 0 && (
+              <div className="warning">
+                <b>Проверьте назначения</b>
+                {warnings.map((item) => <div key={item}>⚠ {item}</div>)}
+              </div>
+            )}
+
+            {!staff.length && !loading && (
+              <div className="warning">В общей базе пока нет активных сотрудников.</div>
+            )}
+
+            <section className="grid">
+              {crews.map((crew) => (
+                <CrewCard key={crew.id} crew={crew} paramedics={paramedics} drivers={drivers} onChange={updateCrew} />
+              ))}
+            </section>
+
+            <div className="bottom">
+              <button className="secondary" onClick={clearDuty}>Новый чистый наряд</button>
+              <button className="primary action-button" onClick={saveDuty}><Save size={18} /> Сохранить в архив</button>
+            </div>
+          </>
         )}
-
-        {!staff.length && !loading && (
-          <div className="warning">
-            В общей базе пока нет активных сотрудников.
-          </div>
-        )}
-
-        <section className="grid">
-          {crews.map((crew) => (
-            <CrewCard
-              key={crew.id}
-              crew={crew}
-              paramedics={paramedics}
-              drivers={drivers}
-              onChange={updateCrew}
-            />
-          ))}
-        </section>
-
-        <div className="bottom">
-          <button className="secondary" onClick={clearDuty}>
-            Новый чистый наряд
-          </button>
-
-          <button className="primary action-button" onClick={saveDuty}>
-            <Save size={18} />
-            Сохранить в архив
-          </button>
-        </div>
       </main>
     </>
   );
 }
 
 createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
+  <React.StrictMode><App /></React.StrictMode>
 );
