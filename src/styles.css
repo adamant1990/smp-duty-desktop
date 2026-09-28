@@ -40,10 +40,12 @@
 @media(max-width:900px){body{min-width:0}.hero{align-items:stretch;flex-direction:column}.header-fields{flex-wrap:wrap}.grid{grid-template-columns:1fr}.topbar{padding:0 10px}.page{padding:20px 12px 60px}.archive-card{align-items:flex-start;flex-direction:column}.archive-actions{width:100%;justify-content:flex-start}.archive-preview-list{grid-template-columns:1fr}}
 
 .print{display:none}
+.print-preview-page .print{display:block}
 .actions{display:flex;gap:9px;align-items:center}
 @media print{
   body{min-width:0;background:#fff}
-  .topbar,.page{display:none!important}\n  .print-preview-overlay{display:none!important}
+  .topbar,.page{display:none!important}
+  .print-preview-overlay{display:none!important}
   .print{display:block;padding:7mm 9mm;color:#000;font-family:Arial,sans-serif}
   .print h1{text-align:center;font-size:17px;margin:0 0 5mm}
   .print-meta{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3.5mm}
