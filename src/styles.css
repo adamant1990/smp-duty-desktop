@@ -39,6 +39,7 @@
 .archive-preview-footer button{height:40px;padding:0 14px;display:flex;align-items:center;gap:7px;border-radius:9px;font-weight:700;cursor:pointer}
 @media(max-width:900px){body{min-width:0}.hero{align-items:stretch;flex-direction:column}.header-fields{flex-wrap:wrap}.grid{grid-template-columns:1fr}.topbar{padding:0 10px}.page{padding:20px 12px 60px}.archive-card{align-items:flex-start;flex-direction:column}.archive-actions{width:100%;justify-content:flex-start}.archive-preview-list{grid-template-columns:1fr}}
 
+.print{display:none}
 .actions{display:flex;gap:9px;align-items:center}
 @media print{
   body{min-width:0;background:#fff}
