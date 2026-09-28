@@ -1,4 +1,4 @@
-:root {
+ :root {
   font-family: Arial, Helvetica, sans-serif;
   color: #17202a;
   background: #f5f6f8;
@@ -14,7 +14,6 @@ html,
 body,
 #root {
   width: 100%;
-  min-width: 100%;
   min-height: 100%;
   margin: 0;
 }
@@ -25,9 +24,17 @@ body {
 }
 
 button,
-input,
-select {
+input {
   font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.65;
 }
 
 .app-shell {
@@ -40,35 +47,19 @@ select {
   align-items: center;
   justify-content: space-between;
   padding: 0 28px;
-  background: #ffffff;
+  background: #fff;
   border-bottom: 1px solid #dfe3e8;
 }
 
 .topbar h1 {
   margin: 0;
   font-size: 23px;
-  font-weight: 700;
 }
 
 .topbar p {
   margin: 5px 0 0;
   color: #697586;
   font-size: 13px;
-}
-
-.status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #596579;
-  font-size: 13px;
-}
-
-.status-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #2f9e44;
 }
 
 .content {
@@ -79,14 +70,14 @@ select {
   max-width: 900px;
   margin: 40px auto;
   padding: 36px;
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #dfe3e8;
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(31, 41, 55, 0.06);
 }
 
 .welcome-card h2 {
-  margin: 0 0 14px;
+  margin: 18px 0 12px;
   font-size: 28px;
 }
 
@@ -94,6 +85,203 @@ select {
   margin: 0;
   color: #4b5563;
   line-height: 1.6;
+}
+
+.primary,
+.secondary {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 7px;
+  padding: 0 16px;
+  border: 1px solid #cfd5dc;
+}
+
+.primary {
+  color: #fff;
+  background: #1f2937;
+  border-color: #1f2937;
+}
+
+.secondary {
+  color: #263241;
+  background: #fff;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.login-card {
+  width: min(440px, 100%);
+  padding: 34px;
+  background: #fff;
+  border: 1px solid #dfe3e8;
+  border-radius: 12px;
+  box-shadow: 0 12px 34px rgba(31, 41, 55, 0.08);
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.login-brand strong,
+.login-brand span {
+  display: block;
+}
+
+.login-brand strong {
+  font-size: 18px;
+}
+
+.login-brand span {
+  margin-top: 3px;
+  color: #697586;
+  font-size: 13px;
+}
+
+.login-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d7dce2;
+  border-radius: 9px;
+  background: #f7f8fa;
+}
+
+.login-heading {
+  margin: 34px 0 22px;
+}
+
+.login-heading h1 {
+  margin: 0;
+  font-size: 27px;
+}
+
+.login-heading p {
+  margin: 7px 0 0;
+  color: #697586;
+  line-height: 1.5;
+}
+
+.login-card form {
+  display: grid;
+  gap: 17px;
+}
+
+.login-card label {
+  display: grid;
+  gap: 7px;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.login-card input {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid #cfd5dc;
+  border-radius: 7px;
+  outline: none;
+  background: #fff;
+}
+
+.login-card input:focus {
+  border-color: #7b8794;
+}
+
+.login-button {
+  width: 100%;
+  margin-top: 3px;
+}
+
+.login-error {
+  padding: 11px 12px;
+  color: #8a2525;
+  background: #fff1f1;
+  border: 1px solid #f0c7c7;
+  border-radius: 7px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.login-security {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 22px;
+  padding-top: 17px;
+  border-top: 1px solid #eceff2;
+  color: #697586;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.loading-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+.loading-page > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #596579;
+}
+
+.connected {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #eef8f0;
+  color: #28743a;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.connected span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2f9e44;
+}
+
+.profile-card {
+  display: grid;
+  gap: 5px;
+  margin-top: 24px;
+  padding: 17px;
+  background: #f7f8fa;
+  border: 1px solid #e3e6ea;
+  border-radius: 8px;
+}
+
+.profile-card span,
+.profile-card small {
+  color: #697586;
+}
+
+.profile-card strong {
+  font-size: 17px;
+}
+
+.muted {
+  margin-top: 12px;
+  color: #697586;
+  font-size: 13px;
 }
 
 .next-step {
