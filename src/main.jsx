@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Archive,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   LogIn,
   LogOut,
@@ -236,6 +238,24 @@ function ArchivePage({ items, onCopy, onDelete, admin, loading }) {
   const [selected, setSelected] = useState(null);
 
   const sorted = [...items].sort((a, b) => b.date.localeCompare(a.date));
+  const ordered = [...items].sort((a, b) => a.date.localeCompare(b.date));
+
+  const selectedIndex = selected
+    ? ordered.findIndex((item) => item.id === selected.id)
+    : -1;
+
+  const hasPrev = selectedIndex > 0;
+  const hasNext = selectedIndex >= 0 && selectedIndex < ordered.length - 1;
+
+  function changeSelected(direction) {
+    if (selectedIndex < 0) return;
+
+    const nextIndex = selectedIndex + direction;
+
+    if (nextIndex >= 0 && nextIndex < ordered.length) {
+      setSelected(ordered[nextIndex]);
+    }
+  }
 
   const weeks = sorted.reduce((acc, item) => {
     const d = new Date(item.date + "T00:00:00");
@@ -335,11 +355,33 @@ function ArchivePage({ items, onCopy, onDelete, admin, loading }) {
         <div className="archive-overlay" onClick={() => setSelected(null)}>
           <div className="archive-preview" onClick={(e) => e.stopPropagation()}>
             <div className="archive-preview-head">
+              <button
+                className="icon-btn archive-nav"
+                disabled={!hasPrev}
+                onClick={() => changeSelected(-1)}
+                title="Предыдущий наряд"
+              >
+                <ChevronLeft size={20} />
+              </button>
+
               <div>
                 <b>{formatDutyDate(selected.date)}</b>
                 <span>{formatDay(selected.date)}</span>
               </div>
-              <button className="icon-btn" onClick={() => setSelected(null)}><X size={20} /></button>
+
+              <div className="archive-preview-head-actions">
+                <button
+                  className="icon-btn archive-nav"
+                  disabled={!hasNext}
+                  onClick={() => changeSelected(1)}
+                  title="Следующий наряд"
+                >
+                  <ChevronRight size={20} />
+                </button>
+                <button className="icon-btn" onClick={() => setSelected(null)} title="Закрыть">
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
             <div className="archive-preview-list">
