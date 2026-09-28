@@ -714,11 +714,21 @@ function App() {
       </main>
 
       {tab === "duty" && (
-        <PrintView
-          date={date}
-          dispatcher={dispatcher}
-          crews={crews}
-        />
+        <>
+          <PrintView
+            date={date}
+            dispatcher={dispatcher}
+            crews={crews}
+          />
+          {printPreview && (
+            <PrintPreview
+              date={date}
+              dispatcher={dispatcher}
+              crews={crews}
+              onClose={() => setPrintPreview(false)}
+            />
+          )}
+        </>
       )}
     </>
   );
