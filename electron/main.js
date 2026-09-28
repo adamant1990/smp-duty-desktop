@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, shell, ipcMain } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -6,6 +6,23 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const isDev = !app.isPackaged;
+
+ipcMain.handle("print-document", async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return { success: false, error: "Окно приложения не найдено." };
+
+  return new Promise((resolve) => {
+    win.webContents.print({
+      silent: false,
+      printBackground: true,
+      color: true,
+      margins: { marginType: "none" },
+      pageSize: "A4"
+    }, (success, failureReason) => {
+      resolve({ success, failureReason: failureReason || "" });
+    });
+  });
+});
 
 function createWindow() {
   const win = new BrowserWindow({
