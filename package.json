@@ -1,0 +1,54 @@
+{
+  "name": "smp-duty-desktop",
+  "version": "0.1.0",
+  "description": "Настольная версия приложения «Наряд бригад СМП»",
+  "private": true,
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "electron": "electron .",
+    "desktop": "concurrently -k "npm:dev" "npm:electron"",
+    "build": "vite build",
+    "dist": "npm run build && electron-builder --win nsis portable"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "lucide-react": "0.468.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "5.0.4",
+    "concurrently": "9.2.1",
+    "electron": "44.4.5",
+    "electron-builder": "26.0.12",
+    "vite": "8.3.1"
+  },
+  "build": {
+    "appId": "ru.smp.duty.desktop",
+    "productName": "Наряд бригад СМП",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
