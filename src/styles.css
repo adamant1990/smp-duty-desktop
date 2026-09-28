@@ -43,7 +43,7 @@
 .actions{display:flex;gap:9px;align-items:center}
 @media print{
   body{min-width:0;background:#fff}
-  .topbar,.page{display:none!important}
+  .topbar,.page{display:none!important}\n  .print-preview-overlay{display:none!important}
   .print{display:block;padding:7mm 9mm;color:#000;font-family:Arial,sans-serif}
   .print h1{text-align:center;font-size:17px;margin:0 0 5mm}
   .print-meta{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3.5mm}
