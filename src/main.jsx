@@ -355,21 +355,21 @@ function ArchivePage({ items, onCopy, onDelete, admin, loading }) {
         <div className="archive-overlay" onClick={() => setSelected(null)}>
           <div className="archive-preview" onClick={(e) => e.stopPropagation()}>
             <div className="archive-preview-head">
-              <button
-                className="icon-btn archive-nav"
-                disabled={!hasPrev}
-                onClick={() => changeSelected(-1)}
-                title="Предыдущий наряд"
-              >
-                <ChevronLeft size={20} />
-              </button>
+              <div className="archive-preview-date-controls">
+                <button
+                  className="icon-btn archive-nav"
+                  disabled={!hasPrev}
+                  onClick={() => changeSelected(-1)}
+                  title="Предыдущий наряд"
+                >
+                  <ChevronLeft size={20} />
+                </button>
 
-              <div>
-                <b>{formatDutyDate(selected.date)}</b>
-                <span>{formatDay(selected.date)}</span>
-              </div>
+                <div className="archive-preview-date">
+                  <b>{formatDutyDate(selected.date)}</b>
+                  <span>{formatDay(selected.date)}</span>
+                </div>
 
-              <div className="archive-preview-head-actions">
                 <button
                   className="icon-btn archive-nav"
                   disabled={!hasNext}
@@ -378,10 +378,11 @@ function ArchivePage({ items, onCopy, onDelete, admin, loading }) {
                 >
                   <ChevronRight size={20} />
                 </button>
-                <button className="icon-btn" onClick={() => setSelected(null)} title="Закрыть">
-                  <X size={20} />
-                </button>
               </div>
+
+              <button className="icon-btn archive-preview-close" onClick={() => setSelected(null)} title="Закрыть">
+                <X size={20} />
+              </button>
             </div>
 
             <div className="archive-preview-list">
