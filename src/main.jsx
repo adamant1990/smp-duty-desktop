@@ -513,11 +513,19 @@ function App() {
     crews.forEach((crew) => {
       [...crew.paramedics, ...crew.drivers].forEach((person) => {
         if (!person.name) return;
-        if (seen.has(person.name)) {
-          result.push(`${person.name}: бригады №${seen.get(person.name)} и №${crew.id}`);
-        } else {
-          seen.set(person.name, crew.id);
+
+        const previous = seen.get(person.name);
+
+        if (previous) {
+          if (previous.crewId === crew.id) {
+            result.push(person.name + ": сотрудник назначен более одного раза в бригаде №" + crew.id);
+          } else {
+            result.push(person.name + ": назначен в бригадах №" + previous.crewId + " и №" + crew.id);
+          }
+          return;
         }
+
+        seen.set(person.name, { crewId: crew.id });
       });
     });
 
