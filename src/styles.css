@@ -1,0 +1,113 @@
+:root {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #17202a;
+  background: #f5f6f8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  background: #f5f6f8;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.topbar {
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  background: #ffffff;
+  border-bottom: 1px solid #dfe3e8;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 23px;
+  font-weight: 700;
+}
+
+.topbar p {
+  margin: 5px 0 0;
+  color: #697586;
+  font-size: 13px;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #596579;
+  font-size: 13px;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #2f9e44;
+}
+
+.content {
+  padding: 32px;
+}
+
+.welcome-card {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 36px;
+  background: #ffffff;
+  border: 1px solid #dfe3e8;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(31, 41, 55, 0.06);
+}
+
+.welcome-card h2 {
+  margin: 0 0 14px;
+  font-size: 28px;
+}
+
+.welcome-card p {
+  margin: 0;
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+.next-step {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 28px;
+  padding: 18px 20px;
+  background: #f7f8fa;
+  border: 1px solid #e3e6ea;
+  border-radius: 8px;
+}
+
+.next-step span {
+  color: #5d6878;
+  line-height: 1.5;
+}
