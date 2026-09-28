@@ -9,6 +9,7 @@ import {
   LogOut,
   Monitor,
   Plus,
+  Users,
   Printer,
   RotateCcw,
   Save,
@@ -427,6 +428,67 @@ function ArchivePage({ items, onCopy, onDelete, admin, loading }) {
   );
 }
 
+function StaffBlock({ title, role, staff, onAdd, onDeactivate, admin }) {
+  const list = staff.filter((person) => person.role === role);
+
+  return (
+    <section className="staff-block">
+      <div className="staff-block-head">
+        <div>
+          <span>СПРАВОЧНИК</span>
+          <h2>{title}</h2>
+        </div>
+        <span className="staff-count">{list.length}</span>
+      </div>
+
+      <div className="staff-list">
+        {list.map((person) => (
+          <div className="staff-line" key={person.id}>
+            <input value={person.full_name} readOnly />
+            <button
+              className="icon-btn staff-remove"
+              disabled={!admin}
+              title={admin ? "Деактивировать сотрудника" : "Только администратор"}
+              onClick={() => onDeactivate(person)}
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ))}
+
+        {!list.length && <div className="staff-empty">Сотрудников нет.</div>}
+      </div>
+
+      {admin && (
+        <button className="add staff-add" onClick={() => onAdd(role)}>
+          <Plus size={16} /> Добавить
+        </button>
+      )}
+    </section>
+  );
+}
+
+function StaffPage({ staff, admin, onAdd, onDeactivate }) {
+  return (
+    <div className="staff-page">
+      <div className="page-heading">
+        <h1>Сотрудники</h1>
+        <p>{admin ? "Управление активным составом общей базы." : "Просмотр активного состава."}</p>
+      </div>
+
+      {!admin && (
+        <div className="info">Изменять список сотрудников может только администратор.</div>
+      )}
+
+      <div className="staff-grid">
+        <StaffBlock title="Фельдшеры" role="paramedic" staff={staff} onAdd={onAdd} onDeactivate={onDeactivate} admin={admin} />
+        <StaffBlock title="Водители" role="driver" staff={staff} onAdd={onAdd} onDeactivate={onDeactivate} admin={admin} />
+        <StaffBlock title="Диспетчеры" role="dispatcher" staff={staff} onAdd={onAdd} onDeactivate={onDeactivate} admin={admin} />
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [session, setSession] = useState(null);
   const [checked, setChecked] = useState(false);
@@ -548,6 +610,56 @@ function App() {
   const drivers = staff.filter((item) => item.role === "driver").map((item) => item.full_name);
   const dispatchers = staff.filter((item) => item.role === "dispatcher").map((item) => item.full_name);
   const admin = profileData?.role === "admin";
+
+  async function refreshStaff() {
+    const list = await db.staff.list(session.access_token);
+    setStaff(list || []);
+    setDispatcher((current) =>
+      current || (list || []).find((item) => item.role === "dispatcher")?.full_name || ""
+    );
+  }
+
+  async function addStaff(role) {
+    const labels = {
+      paramedic: "ФИО фельдшера:",
+      driver: "ФИО водителя:",
+      dispatcher: "ФИО диспетчера:"
+    };
+
+    const name = window.prompt(labels[role] || "ФИО сотрудника:");
+    if (!name?.trim()) return;
+
+    setError("");
+    setMessage("");
+
+    try {
+      await db.staff.add({
+        full_name: name.trim(),
+        role,
+        active: true
+      }, session.access_token);
+
+      await refreshStaff();
+      setMessage("Сотрудник добавлен в активный список.");
+    } catch (err) {
+      setError(err?.message || "Не удалось добавить сотрудника.");
+    }
+  }
+
+  async function deactivateStaff(person) {
+    if (!window.confirm(`Убрать ${person.full_name} из активного списка?`)) return;
+
+    setError("");
+    setMessage("");
+
+    try {
+      await db.staff.update(person.id, { active: false }, session.access_token);
+      await refreshStaff();
+      setMessage("Сотрудник деактивирован.");
+    } catch (err) {
+      setError(err?.message || "Не удалось деактивировать сотрудника.");
+    }
+  }
 
   const warnings = useMemo(() => {
     const seen = new Map();
@@ -709,6 +821,11 @@ function App() {
           <button className={`tab ${tab === "archive" ? "active" : ""}`} onClick={() => setTab("archive")}>
             <Archive size={17} /> Архив
           </button>
+          {admin && (
+            <button className={`tab ${tab === "staff" ? "active" : ""}`} onClick={() => setTab("staff")}>
+              <Users size={17} /> Сотрудники
+            </button>
+          )}
           <span className="user-name">{profileData?.full_name || session.user?.email}</span>
           <button className="tab" onClick={logout}><LogOut size={17} /> Выйти</button>
         </div>
@@ -726,6 +843,13 @@ function App() {
             onDelete={deleteDuty}
             admin={admin}
             loading={archiveLoading}
+          />
+        ) : tab === "staff" ? (
+          <StaffPage
+            staff={staff}
+            admin={admin}
+            onAdd={addStaff}
+            onDeactivate={deactivateStaff}
           />
         ) : (
           <>
