@@ -235,7 +235,7 @@ function CrewCard({ crew, paramedics, drivers, onChange }) {
   );
 }
 
-function ArchivePage({ items, onCopy, onDelete, admin, loading }) {
+function ArchivePage({ items, onEdit, onCopy, onDelete, admin, loading }) {
   const [selected, setSelected] = useState(null);
 
   const sorted = [...items].sort((a, b) => b.date.localeCompare(a.date));
@@ -330,6 +330,13 @@ function ArchivePage({ items, onCopy, onDelete, admin, loading }) {
 
                       <button className="secondary" onClick={(e) => {
                         e.stopPropagation();
+                        onEdit(item);
+                      }}>
+                        <Pencil size={16} /> Редактировать
+                      </button>
+
+                      <button className="secondary" onClick={(e) => {
+                        e.stopPropagation();
                         onCopy(item);
                       }}>
                         <RotateCcw size={16} /> Копировать
@@ -414,12 +421,20 @@ function ArchivePage({ items, onCopy, onDelete, admin, loading }) {
 
             <div className="archive-preview-footer">
               <span>Составил: {selected.dispatcher || "—"}</span>
-              <button className="primary" onClick={() => {
-                onCopy(selected);
-                setSelected(null);
-              }}>
-                <RotateCcw size={17} /> Копировать наряд
-              </button>
+              <div className="archive-preview-footer-actions">
+                <button className="secondary" onClick={() => {
+                  onEdit(selected);
+                  setSelected(null);
+                }}>
+                  <Pencil size={17} /> Редактировать
+                </button>
+                <button className="primary" onClick={() => {
+                  onCopy(selected);
+                  setSelected(null);
+                }}>
+                  <RotateCcw size={17} /> Копировать наряд
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -562,6 +577,7 @@ function App() {
   const [date, setDate] = useState(tomorrow());
   const [dispatcher, setDispatcher] = useState("");
   const [crews, setCrews] = useState(newCrews);
+  const [editingDutyId, setEditingDutyId] = useState(null);
   const [telegramAccounts, setTelegramAccounts] = useState([]);
   const [telegramLink, setTelegramLink] = useState(null);
 
@@ -605,10 +621,12 @@ function App() {
       const items = (duties || []).map((duty, index) => ({
         id: duty.id,
         date: duty.duty_date,
+        dispatcherId: duty.dispatcher_id,
         dispatcher: staffMap[duty.dispatcher_id] || "—",
         savedAt: duty.created_at,
         crews: (crewGroups[index] || []).map((crew) => ({
           id: crew.brigade_number,
+          dbId: crew.id,
           paramedics: members
             .filter((member) => member.crew_id === crew.id && member.position === "paramedic")
             .map((member) => ({
@@ -764,37 +782,61 @@ function App() {
     } catch (err) { setError(err?.message || "Не удалось отвязать Telegram."); }
   }
 
-  const warnings = useMemo(() => {
+  const validation = useMemo(() => {
+    const errors = [];
+    const warnings = [];
     const seen = new Map();
-    const result = [];
+    const brigadeNumbers = new Set(crews.map((crew) => crew.id));
+
+    if (crews.length !== 8 || brigadeNumbers.size !== 8 || [...brigadeNumbers].some((number) => number < 1 || number > 8)) {
+      errors.push("В наряде должны присутствовать все 8 бригад: №1–№8.");
+    }
 
     crews.forEach((crew) => {
+      const paramedics = crew.paramedics.filter((person) => person.name);
+      const drivers = crew.drivers.filter((person) => person.name);
+
+      if (!paramedics.length) {
+        errors.push(`Бригада №${crew.id}: не указан ни один фельдшер.`);
+      }
+
+      if (!drivers.length) {
+        warnings.push(`Бригада №${crew.id}: не указан водитель.`);
+      }
+
       [...crew.paramedics, ...crew.drivers].forEach((person) => {
         if (!person.name) return;
 
-        const previous = seen.get(person.name);
+        const key = person.name.trim().toLowerCase();
+        const previous = seen.get(key);
 
         if (previous) {
           if (previous.crewId === crew.id) {
-            result.push(person.name + ": сотрудник назначен более одного раза в бригаде №" + crew.id);
+            errors.push(`${person.name}: сотрудник назначен более одного раза в бригаде №${crew.id}.`);
           } else {
-            result.push(person.name + ": назначен в бригадах №" + previous.crewId + " и №" + crew.id);
+            errors.push(`${person.name}: назначен в бригадах №${previous.crewId} и №${crew.id}.`);
           }
           return;
         }
 
-        seen.set(person.name, { crewId: crew.id });
+        seen.set(key, { crewId: crew.id });
       });
     });
 
-    return [...new Set(result)];
+    return {
+      errors: [...new Set(errors)],
+      warnings: [...new Set(warnings)]
+    };
   }, [crews]);
+
+  const warnings = validation.errors;
 
   function updateCrew(nextCrew) {
     setCrews((current) => current.map((crew) => crew.id === nextCrew.id ? nextCrew : crew));
   }
 
   function clearDuty() {
+    setEditingDutyId(null);
     setDate(tomorrow());
     setDispatcher(dispatchers[0] || "");
     setCrews(newCrews());
@@ -806,31 +848,79 @@ function App() {
     setError("");
     setMessage("");
 
-    const enteredParamedics = crews.flatMap((crew) =>
-      crew.paramedics.filter((person) => person.name)
-    );
-
-    if (!enteredParamedics.length) {
-      setError("Наряд не сохранён: укажите хотя бы одного фельдшера.");
-      return;
-    }
-
-    if (warnings.length > 0) {
-      setError("Наряд не сохранён: сначала исправьте дублирующиеся назначения.");
+    if (validation.errors.length > 0) {
+      setError(
+        `Наряд не сохранён. Исправьте ошибки проверки: ${validation.errors.join(" ")}`
+      );
       return;
     }
 
     try {
       const token = session.access_token;
 
-      const existing = await db.duties.findByDate(date, token);
-      if (existing?.length) {
-        setError(`На ${formatDutyDate(date)} наряд уже существует в архиве. Выберите другую дату или откройте существующий наряд в архиве.`);
+      if (!date) {
+        setError("Наряд не сохранён: укажите дату.");
         return;
       }
+
       const dispatcherId = staff.find(
         (item) => item.role === "dispatcher" && item.full_name === dispatcher
       )?.id || null;
+
+      if (editingDutyId) {
+        await db.duties.update(editingDutyId, {
+          duty_date: date,
+          dispatcher_id: dispatcherId
+        }, token);
+
+        for (const crewData of crews) {
+          let crewId = crewData.dbId;
+
+          if (crewId) {
+            await db.crews.update(crewId, {
+              brigade_number: crewData.id,
+              brigade_type: "Линейная фельдшерская"
+            }, token);
+          } else {
+            const created = (await db.crews.add({
+              duty_id: editingDutyId,
+              brigade_number: crewData.id,
+              brigade_type: "Линейная фельдшерская"
+            }, token))[0];
+            crewId = created.id;
+          }
+
+          await db.members.removeByCrew(crewId, token);
+
+          const members = [
+            ...crewData.paramedics.filter((item) => item.name).map((item) => ({
+              crew_id: crewId,
+              staff_id: staff.find((person) => person.role === "paramedic" && person.full_name === item.name)?.id,
+              position: "paramedic",
+              shift: item.shift
+            })),
+            ...crewData.drivers.filter((item) => item.name).map((item) => ({
+              crew_id: crewId,
+              staff_id: staff.find((person) => person.role === "driver" && person.full_name === item.name)?.id,
+              position: "driver",
+              shift: item.shift
+            }))
+          ].filter((item) => item.staff_id);
+
+          await db.members.addMany(members, token);
+        }
+
+        await loadArchive(token);
+        setMessage(`Наряд на ${formatDutyDate(date)} изменён и сохранён.`);
+        setEditingDutyId(null);
+        return;
+      }
+
+      const existing = await db.duties.findByDate(date, token);
+      if (existing?.length) {
+        setError(`На ${formatDutyDate(date)} наряд уже существует в архиве. Если нужно изменить его, откройте архив и нажмите «Редактировать».`);
+        return;
+      }
 
       const duty = (await db.duties.add({
         duty_date: date,
@@ -870,8 +960,9 @@ function App() {
     }
   }
 
-  function copyDuty(item) {
-    setDate(tomorrow());
+  function editDuty(item) {
+    setEditingDutyId(item.id);
+    setDate(item.date);
     setDispatcher(item.dispatcher === "—" ? "" : item.dispatcher);
     setCrews(item.crews.map((crew) => ({
       ...crew,
@@ -879,6 +970,22 @@ function App() {
       drivers: crew.drivers.map((person) => ({ ...person, id: uid() }))
     })));
     setTab("duty");
+    setError("");
+    setMessage(`Наряд на ${formatDutyDate(item.date)} открыт для редактирования.`);
+  }
+
+  function copyDuty(item) {
+    setEditingDutyId(null);
+    setDate(tomorrow());
+    setDispatcher(item.dispatcher === "—" ? "" : item.dispatcher);
+    setCrews(item.crews.map((crew) => ({
+      ...crew,
+      dbId: null,
+      paramedics: crew.paramedics.map((person) => ({ ...person, id: uid() })),
+      drivers: crew.drivers.map((person) => ({ ...person, id: uid() }))
+    })));
+    setTab("duty");
+    setError("");
     setMessage("Наряд загружен на завтрашнюю дату. Проверьте состав и сохраните.");
   }
 
@@ -964,6 +1071,7 @@ function App() {
         {tab === "archive" ? (
           <ArchivePage
             items={archive}
+            onEdit={editDuty}
             onCopy={copyDuty}
             onDelete={deleteDuty}
             admin={admin}
@@ -984,8 +1092,10 @@ function App() {
           <>
             <section className="hero">
               <div>
-                <h1>Новый наряд</h1>
-                <p>Заполните состав 8 линейных фельдшерских бригад.</p>
+                <h1>{editingDutyId ? "Редактирование наряда" : "Новый наряд"}</h1>
+                <p>{editingDutyId
+                  ? `Измените состав наряда на ${formatDutyDate(date)} и сохраните изменения.`
+                  : "Заполните состав 8 линейных фельдшерских бригад."}</p>
               </div>
 
               <div className="header-fields">
@@ -1004,10 +1114,11 @@ function App() {
               </div>
             </section>
 
-            {warnings.length > 0 && (
+            {(validation.errors.length > 0 || validation.warnings.length > 0) && (
               <div className="warning">
-                <b>Проверьте назначения</b>
-                {warnings.map((item) => <div key={item}>⚠ {item}</div>)}
+                <b>Проверка наряда</b>
+                {validation.errors.map((item) => <div key={`error-${item}`}>Ошибка: {item}</div>)}
+                {validation.warnings.map((item) => <div key={`warning-${item}`}>Предупреждение: {item}</div>)}
               </div>
             )}
 
@@ -1022,13 +1133,15 @@ function App() {
             </section>
 
             <div className="bottom">
-              <button className="secondary" onClick={clearDuty}>Новый чистый наряд</button>
+              <button className="secondary" onClick={clearDuty}>
+                {editingDutyId ? "Отменить редактирование" : "Новый чистый наряд"}
+              </button>
               <div className="actions">
                 <button className="secondary" onClick={() => window.desktopApp?.print?.()}>
                   <Printer size={18} /> Печать
                 </button>
                 <button className="primary action-button" onClick={saveDuty} disabled={loading}>
-                  <Save size={18} /> Сохранить в архив
+                  <Save size={18} /> {editingDutyId ? "Сохранить изменения" : "Сохранить в архив"}
                 </button>
               </div>
             </div>
