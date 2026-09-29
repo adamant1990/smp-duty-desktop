@@ -136,6 +136,26 @@ export const db = {
       }, token)
   },
 
+  telegram: {
+    list: (token) =>
+      request("/rest/v1/rpc/admin_staff_telegram_accounts", {
+        method: "POST",
+        body: "{}"
+      }, token),
+
+    createLinkCode: (staffId, token) =>
+      request("/rest/v1/rpc/create_telegram_link_code", {
+        method: "POST",
+        body: JSON.stringify({ p_staff_id: staffId })
+      }, token),
+
+    unlink: (staffId, token) =>
+      request("/rest/v1/rpc/admin_unlink_telegram", {
+        method: "POST",
+        body: JSON.stringify({ p_staff_id: staffId })
+      }, token)
+  },
+
   duties: {
     list: (token) =>
       request("/rest/v1/duties?select=*&order=duty_date.desc,created_at.desc", {}, token),
