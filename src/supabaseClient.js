@@ -175,6 +175,8 @@ export const db = {
       if (!Array.isArray(crews) || crews.length !== 8) throw new Error("Наряд должен содержать 8 бригад.");
 
       const oldDutyDate = duties[0].duty_date || null;
+      const dateConflicts = await request("/rest/v1/duties?duty_date=eq." + encodeURIComponent(dutyDate) + "&id=neq." + encodeURIComponent(dutyId) + "&select=id", {}, token);
+      if (dateConflicts?.length) throw new Error("На указанную дату уже существует другой наряд.");
 
       const existingCrews = await request(
         "/rest/v1/duty_crews?duty_id=eq." + encodeURIComponent(dutyId) + "&select=id,brigade_number",
