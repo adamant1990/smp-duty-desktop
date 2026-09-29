@@ -437,7 +437,6 @@ function App() {
               id: uid(),
               staffId: member.staff_id,
               name: staffMap[member.staff_id] || "Сотрудник неактивен",
-              staffId: member.staff_id,
               shift: member.shift,
               start_time: member.start_time,
               end_time: member.end_time
@@ -448,7 +447,6 @@ function App() {
               id: uid(),
               staffId: member.staff_id,
               name: staffMap[member.staff_id] || "",
-              staffId: member.staff_id,
               shift: member.shift,
               start_time: member.start_time,
               end_time: member.end_time
