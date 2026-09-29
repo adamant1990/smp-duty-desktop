@@ -75,3 +75,5 @@
 }
 
 .telegram-link-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:7px}.telegram-link-actions a{color:#0f766e;text-decoration:underline;font-size:12px;font-weight:700;overflow-wrap:anywhere}.telegram-copy{font-size:11px;padding:0;background:transparent}
+
+.archive-preview-footer-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.archive-preview-footer-actions button{height:40px;padding:0 13px;display:inline-flex;align-items:center;gap:7px;border-radius:9px;font-weight:700;cursor:pointer}
