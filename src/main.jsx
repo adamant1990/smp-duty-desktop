@@ -565,6 +565,16 @@ function App() {
   const [telegramAccounts, setTelegramAccounts] = useState([]);
 
   useEffect(() => {
+    if (!message) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setMessage("");
+    }, 4000);
+
+    return () => window.clearTimeout(timer);
+  }, [message]);
+
+  useEffect(() => {
     restoreSession()
       .then(setSession)
       .catch(() => setSession(null))
