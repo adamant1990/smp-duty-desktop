@@ -431,6 +431,8 @@ function ArchivePage({ items, onCopy, onDelete, admin, loading }) {
 function StaffBlock({ title, role, staff, telegramMap, onAdd, onEdit, onDeactivate, onLinkTelegram, onUnlinkTelegram, admin }) {
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [addDraft, setAddDraft] = useState("");
 
   const list = staff.filter((person) => person.role === role);
 
@@ -498,7 +500,31 @@ function StaffBlock({ title, role, staff, telegramMap, onAdd, onEdit, onDeactiva
         {!list.length && <div className="staff-empty">Сотрудников нет.</div>}
       </div>
 
-      {admin && <button className="add staff-add" onClick={() => onAdd(role)}><Plus size={16} /> Добавить</button>}
+      {admin && (adding ? (
+        <div className="staff-add-form">
+          <input autoFocus value={addDraft} placeholder="ФИО сотрудника"
+            onChange={(e) => setAddDraft(e.target.value)}
+            onKeyDown={async (e) => {
+              if (e.key === "Enter" && addDraft.trim()) {
+                await onAdd(role, addDraft.trim());
+                setAddDraft("");
+                setAdding(false);
+              }
+              if (e.key === "Escape") {
+                setAddDraft("");
+                setAdding(false);
+              }
+            }} />
+          <button className="primary staff-small" disabled={!addDraft.trim()} onClick={async () => {
+            await onAdd(role, addDraft.trim());
+            setAddDraft("");
+            setAdding(false);
+          }}>✓</button>
+          <button className="staff-small" onClick={() => { setAddDraft(""); setAdding(false); }}>×</button>
+        </div>
+      ) : (
+        <button className="add staff-add" onClick={() => setAdding(true)}><Plus size={16} /> Добавить</button>
+      ))}
     </section>
   );
 }
@@ -665,10 +691,9 @@ function App() {
     setDispatcher((current) => current || (list || []).find((item) => item.role === "dispatcher")?.full_name || "");
   }
 
-  async function addStaff(role) {
-    const labels = { paramedic: "Новый фельдшер", driver: "Новый водитель", dispatcher: "Новый диспетчер" };
-    const name = window.prompt(labels[role] || "Новый сотрудник");
+  async function addStaff(role, name) {
     if (!name?.trim()) return;
+    setError("");
     try {
       await db.staff.add({ full_name: name.trim(), role, active: true }, session.access_token);
       await refreshStaff();
