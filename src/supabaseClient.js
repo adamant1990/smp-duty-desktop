@@ -144,9 +144,9 @@ export const db = {
       }, token),
 
     createLinkCode: (staffId, token) =>
-      request("/rest/v1/rpc/create_telegram_link_code", {
+      request("/functions/v1/telegram-duty-bot?action=create-link-code", {
         method: "POST",
-        body: JSON.stringify({ p_staff_id: staffId })
+        body: JSON.stringify({ staff_id: staffId })
       }, token),
 
     unlink: (staffId, token) =>
