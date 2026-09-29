@@ -9,6 +9,7 @@ import {
   LogOut,
   Monitor,
   Plus,
+  Pencil,
   Users,
   Printer,
   RotateCcw,
