@@ -162,7 +162,7 @@ export const db = {
 
     findByDate: (date, token) =>
       request(
-        `/rest/v1/duties?duty_date=eq.${encodeURIComponent(date)}&select=id,duty_date&limit=1`,
+        `/rest/v1/duties?duty_date=eq.${encodeURIComponent(date)}&select=id,duty_date`,
         {},
         token
       ),
