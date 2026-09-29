@@ -703,6 +703,23 @@ function App() {
         await db.members.addMany(rows,token);
         rows.forEach(row=>newAssignments.push({...row,brigade_number:c.id}));
       }
+      if (date === tomorrow()) {
+        try {
+          await db.telegram.publishDutyChanges({
+            duty_id: duty.id,
+            duty_date: date,
+            old_members: [],
+            new_members: newAssignments.map(row => ({
+              staff_id: row.staff_id,
+              position: row.position,
+              shift: row.shift,
+              start_time: row.start_time,
+              end_time: row.end_time,
+              brigade_number: row.brigade_number
+            }))
+          }, token);
+        } catch (e) { console.warn("Telegram duty publish notification failed:", e); }
+      }
       clearDutyDraft(session.user.id); setDraft(null);
       await loadArchive(token);
       setMessage("Наряд сохранён в общей базе Supabase.");
