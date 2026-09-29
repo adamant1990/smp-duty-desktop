@@ -682,6 +682,19 @@ function App() {
     [telegramAccounts]
   );
 
+  async function deactivateStaff(person) {
+    if (!window.confirm(`Деактивировать сотрудника «${person.full_name}»?`)) return;
+
+    setError("");
+    try {
+      await db.staff.update(person.id, { active: false }, session.access_token);
+      await refreshStaff();
+      setMessage(`Сотрудник «${person.full_name}» деактивирован.`);
+    } catch (err) {
+      setError(err?.message || "Не удалось деактивировать сотрудника.");
+    }
+  }
+
   async function refreshStaff() {
     const list = await db.staff.list(session.access_token);
     setStaff(list || []);
