@@ -527,6 +527,8 @@ function App() {
   const [telegramLink, setTelegramLink] = useState(null);
   const [printDuty, setPrintDuty] = useState(null);
   const [windowMaximized, setWindowMaximized] = useState(false);
+  const [draft, setDraft] = useState(null);
+  const [viewingDuty, setViewingDuty] = useState(false);
 
   useEffect(() => {
     if (!message) return undefined;
@@ -580,7 +582,10 @@ function App() {
               id: uid(),
               staffId: member.staff_id,
               name: staffMap[member.staff_id] || "Сотрудник неактивен",
-              shift: member.shift
+              staffId: member.staff_id,
+              shift: member.shift,
+              start_time: member.start_time,
+              end_time: member.end_time
             })),
           drivers: members
             .filter((member) => member.crew_id === crew.id && member.position === "driver")
@@ -588,7 +593,10 @@ function App() {
               id: uid(),
               staffId: member.staff_id,
               name: staffMap[member.staff_id] || "",
-              shift: member.shift
+              staffId: member.staff_id,
+              shift: member.shift,
+              start_time: member.start_time,
+              end_time: member.end_time
             }))
         }))
       }));
@@ -736,50 +744,36 @@ function App() {
     const errors = [];
     const warnings = [];
     const seen = new Map();
-    const brigadeNumbers = new Set(crews.map((crew) => crew.id));
-
-    if (crews.length !== 8 || brigadeNumbers.size !== 8 || [...brigadeNumbers].some((number) => number < 1 || number > 8)) {
+    const brigadeNumbers = new Set(crews.map(c => c.id));
+    if (crews.length !== 8 || brigadeNumbers.size !== 8 || [...brigadeNumbers].some(n => n < 1 || n > 8)) {
       errors.push("В наряде должны присутствовать все 8 бригад: №1–№8.");
     }
-
-    crews.forEach((crew) => {
-      const paramedics = crew.paramedics.filter((person) => person.name);
-      const drivers = crew.drivers.filter((person) => person.name);
-
-      if (!paramedics.length) {
-        errors.push(`Бригада №${crew.id}: не указан ни один фельдшер.`);
-      }
-
-      if (!drivers.length) {
-        warnings.push(`Бригада №${crew.id}: не указан водитель.`);
-      }
-
-      [...crew.paramedics, ...crew.drivers].forEach((person) => {
+    crews.forEach(crew => {
+      const paramedics = crew.paramedics.filter(p => p.name);
+      const drivers = crew.drivers.filter(p => p.name);
+      if (!paramedics.length) errors.push(`Бригада №${crew.id}: не указан ни один фельдшер.`);
+      if (!drivers.length) warnings.push(`Бригада №${crew.id}: не указан водитель.`);
+      [...crew.paramedics, ...crew.drivers].forEach(person => {
         if (!person.name) return;
-
-        const key = person.staffId || person.name.trim().toLowerCase();
-        const previous = seen.get(key);
-
-        if (previous) {
-          if (previous.crewId === crew.id) {
-            errors.push(`${person.name}: сотрудник назначен более одного раза в бригаде №${crew.id}.`);
-          } else {
-            errors.push(`${person.name}: назначен в бригадах №${previous.crewId} и №${crew.id}.`);
+        const staffId = person.staffId || staff.find(x => x.full_name === person.name)?.id;
+        const times = shiftTimes(person.shift, person.start_time, person.end_time);
+        const key = staffId || person.name.trim().toLowerCase();
+        const previous = seen.get(key) || [];
+        previous.forEach(prev => {
+          if (intervalsOverlapSafe(prev.start_time, prev.end_time, times.start, times.end)) {
+            errors.push(`${person.name}: пересекающаяся смена в бригадах №${prev.crewId} и №${crew.id}.`);
           }
-          return;
-        }
-
-        seen.set(key, { crewId: crew.id });
+        });
+        seen.set(key, [...previous, { crewId: crew.id, start_time: times.start, end_time: times.end }]);
       });
     });
+    return { errors: [...new Set(errors)], warnings: [...new Set(warnings)] };
+  }, [crews, staff]);
 
-    return {
-      errors: [...new Set(errors)],
-      warnings: [...new Set(warnings)]
-    };
-  }, [crews]);
-
-  const warnings = validation.errors;
+  const intervalsOverlapSafe = (a,b,c,d) => hasAssignmentConflict(
+    {staff_id:"x",start_time:a,end_time:b},
+    {staff_id:"x",start_time:c,end_time:d}
+  );
 
   function updateCrew(nextCrew) {
     setCrews((current) => current.map((crew) => crew.id === nextCrew.id ? nextCrew : crew));
@@ -787,129 +781,72 @@ function App() {
 
   function clearDuty() {
     setEditingDutyId(null);
+    setViewingDuty(false);
     setDate(tomorrow());
     setDispatcher(dispatchers[0] || "");
     setCrews(newCrews());
     setMessage("");
     setError("");
+    if (session?.user?.id) { clearDutyDraft(session.user.id); setDraft(null); }
   }
 
+  const buildAssignments = () => crews.map(c => ({
+    number: c.id,
+    members: [
+      ...c.paramedics.filter(p=>p.name).map(p=> {
+        const times=shiftTimes(p.shift,p.start_time,p.end_time);
+        return {staff_id:p.staffId || staff.find(x=>x.role==="paramedic"&&x.full_name===p.name)?.id,position:"paramedic",shift:p.shift,start_time:times.start,end_time:times.end};
+      }),
+      ...c.drivers.filter(p=>p.name).map(p=> {
+        const times=shiftTimes(p.shift,p.start_time,p.end_time);
+        return {staff_id:p.staffId || staff.find(x=>x.role==="driver"&&x.full_name===p.name)?.id,position:"driver",shift:p.shift,start_time:times.start,end_time:times.end};
+      })
+    ].filter(x=>x.staff_id)
+  }));
+
   async function saveDuty() {
-    setError("");
-    setMessage("");
-
-    if (validation.errors.length > 0) {
-      setError(
-        `Наряд не сохранён. Исправьте ошибки проверки: ${validation.errors.join(" ")}`
-      );
-      return;
-    }
-
+    setError(""); setMessage("");
+    const today = new Date().toLocaleDateString("en-CA");
+    if (!editingDutyId && date < today) { setError("Нельзя создать наряд на прошедшую дату."); return; }
+    if (validation.errors.length) { setError("Наряд не сохранён. Исправьте ошибки проверки: " + validation.errors.join(" ")); return; }
     try {
-      const token = session.access_token;
-
-      if (!date) {
-        setError("Наряд не сохранён: укажите дату.");
-        return;
-      }
-
-      const existing = await db.duties.findByDate(date, token);
-      const conflictingDuty = (existing || []).find((item) => item.id !== editingDutyId);
-
-      if (conflictingDuty) {
-        setError(
-          `На ${formatDutyDate(date)} уже существует другой наряд. Выберите другую дату или откройте этот наряд из архива.`
-        );
-        return;
-      }
-
-      const dispatcherId = staff.find(
-        (item) => item.role === "dispatcher" && item.full_name === dispatcher
-      )?.id || null;
-
-      if (editingDutyId) {
-        const rpcCrews = crews.map((crew) => ({
-          brigade_number: crew.id,
-          brigade_type: "Линейная фельдшерская",
-          members: [
-            ...crew.paramedics.filter((item) => item.name).map((item) => ({
-              staff_id: item.staffId || staff.find(
-                (person) => person.role === "paramedic" && person.full_name === item.name
-              )?.id,
-              position: "paramedic",
-              shift: item.shift
-            })),
-            ...crew.drivers.filter((item) => item.name).map((item) => ({
-              staff_id: item.staffId || staff.find(
-                (person) => person.role === "driver" && person.full_name === item.name
-              )?.id,
-              position: "driver",
-              shift: item.shift
-            }))
-          ].filter((item) => item.staff_id)
-        }));
-
-        await db.duties.updateFull(
-          editingDutyId,
-          date,
-          dispatcherId,
-          rpcCrews,
-          token
-        );
-
+      const token=session.access_token;
+      const existing=await db.duties.findByDate(date,token);
+      const conflict=(existing||[]).find(x=>x.id!==editingDutyId);
+      if(conflict){setError(`На ${formatDutyDate(date)} уже существует другой наряд. Откройте его в архиве и используйте редактирование.`);return;}
+      const dispatcherId=staff.find(x=>x.role==="dispatcher"&&x.full_name===dispatcher)?.id||null;
+      if(editingDutyId){
+        const payload=buildAssignments();
+        await db.duties.updateFull(editingDutyId,date,dispatcherId,payload,token);
         await loadArchive(token);
+        clearDutyDraft(session.user.id);
+        setDraft(null);
         setEditingDutyId(null);
+        setViewingDuty(false);
         setMessage("Изменения наряда сохранены.");
+        setTab("archive");
         return;
       }
-
-      const duty = (await db.duties.add({
-        duty_date: date,
-        dispatcher_id: dispatcherId,
-        created_by: session.user.id
-      }, token))[0];
-
-      for (const crewData of crews) {
-        const crew = (await db.crews.add({
-          duty_id: duty.id,
-          brigade_number: crewData.id,
-          brigade_type: "Линейная фельдшерская"
-        }, token))[0];
-
-        const members = [
-          ...crewData.paramedics.filter((item) => item.name).map((item) => ({
-            crew_id: crew.id,
-            staff_id: item.staffId || staff.find((person) => person.role === "paramedic" && person.full_name === item.name)?.id,
-            position: "paramedic",
-            shift: item.shift
-          })),
-          ...crewData.drivers.filter((item) => item.name).map((item) => ({
-            crew_id: crew.id,
-            staff_id: item.staffId || staff.find((person) => person.role === "driver" && person.full_name === item.name)?.id,
-            position: "driver",
-            shift: item.shift
-          }))
-        ].filter((item) => item.staff_id);
-
-        await db.members.addMany(members, token);
+      const duty=(await db.duties.add({duty_date:date,dispatcher_id:dispatcherId,created_by:session.user.id},token))[0];
+      const newAssignments=[];
+      for(const c of crews){
+        const crew=(await db.crews.add({duty_id:duty.id,brigade_number:c.id,brigade_type:"Линейная фельдшерская"},token))[0];
+        const rows=buildAssignments().find(x=>x.number===c.id)?.members.map(x=>({...x,crew_id:crew.id}))||[];
+        await db.members.addMany(rows,token);
+        rows.forEach(row=>newAssignments.push({...row,brigade_number:c.id}));
       }
-
+      clearDutyDraft(session.user.id); setDraft(null);
       await loadArchive(token);
       setMessage("Наряд сохранён в общей базе Supabase.");
-    } catch (err) {
-      setError(err?.message || "Не удалось сохранить наряд.");
-    }
+    } catch(err){setError(err?.message||"Не удалось сохранить наряд.");}
   }
 
   function editDuty(item) {
     setEditingDutyId(item.id);
+    setViewingDuty(false);
     setDate(item.date);
-    setDispatcher(item.dispatcher === "—" ? "" : item.dispatcher);
-    setCrews(item.crews.map((crew) => ({
-      ...crew,
-      paramedics: crew.paramedics.map((person) => ({ ...person, id: uid() })),
-      drivers: crew.drivers.map((person) => ({ ...person, id: uid() }))
-    })));
+    setDispatcher(item.dispatcher==="—"?"":item.dispatcher);
+    setCrews(cloneCrewsForForm(item.crews));
     setTab("duty");
     setError("");
     setMessage(`Наряд на ${formatDutyDate(item.date)} открыт для редактирования.`);
@@ -917,14 +854,10 @@ function App() {
 
   function copyDuty(item) {
     setEditingDutyId(null);
+    setViewingDuty(false);
     setDate(tomorrow());
-    setDispatcher(item.dispatcher === "—" ? "" : item.dispatcher);
-    setCrews(item.crews.map((crew) => ({
-      ...crew,
-      dbId: null,
-      paramedics: crew.paramedics.map((person) => ({ ...person, id: uid() })),
-      drivers: crew.drivers.map((person) => ({ ...person, id: uid() }))
-    })));
+    setDispatcher(item.dispatcher==="—"?"":item.dispatcher);
+    setCrews(cloneCrewsForForm(item.crews).map(c=>({...c,dbId:null})));
     setTab("duty");
     setError("");
     setMessage("Наряд загружен на завтрашнюю дату. Проверьте состав и сохраните.");
@@ -1029,7 +962,7 @@ function App() {
           </div>
         )}
 
-        {tab === "archive" ? (
+        {tab === "report" && admin ? (\n          <ReportPage items={archive} staff={staff} onPrint={() => window.desktopApp?.print?.()} />\n        ) : tab === "archive" ? (
           <ArchivePage
             items={archive}
             onEdit={editDuty}
@@ -1064,7 +997,7 @@ function App() {
               <div className="header-fields">
                 <label>
                   Дата наряда
-                  <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                  <input type="date" value={date} min={profileData?.role==="admin"?undefined:new Date().toLocaleDateString("en-CA")} disabled={Boolean(editingDutyId||viewingDuty)} onChange={(e) => setDate(e.target.value)} />
                 </label>
 
                 <label>
@@ -1077,6 +1010,16 @@ function App() {
               </div>
             </section>
 
+            {draft && !editingDutyId && !viewingDuty && (
+              <div className="draft-bar">
+                <div><b>Найден несохранённый черновик наряда</b><span>Дата: {draft.date ? formatDutyDate(draft.date) : "—"}</span></div>
+                <div className="draft-actions">
+                  <button className="primary" onClick={()=>{setDate(draft.date||tomorrow());setDispatcher(draft.dispatcher||"");setCrews(cloneCrewsForForm(draft.crews||newCrews()));setDraft(null);}}>Восстановить</button>
+                  <button className="secondary" onClick={()=>{clearDutyDraft(session.user.id);setDraft(null);}}>Удалить</button>
+                </div>
+              </div>
+            )}
+            {!editingDutyId && !viewingDuty && <div className="template-bar"><ExcelDutyImport /></div>}
             {(validation.errors.length > 0 || validation.warnings.length > 0) && (
               <div className="warning">
                 <b>Проверка наряда</b>
@@ -1091,7 +1034,7 @@ function App() {
 
             <section className="grid">
               {crews.map((crew) => (
-                <CrewCard key={crew.id} crew={crew} paramedics={paramedics} drivers={drivers} onChange={updateCrew} />
+                <CrewCard key={crew.id} crew={crew} paramedics={paramedics} drivers={drivers} onChange={updateCrew} viewing={viewingDuty} />
               ))}
             </section>
 
