@@ -73,3 +73,5 @@
   .print tbody tr{page-break-inside:avoid}
   @page{size:A4 portrait;margin:0}
 }
+
+.telegram-link-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:7px}.telegram-link-actions a{color:#0f766e;text-decoration:underline;font-size:12px;font-weight:700;overflow-wrap:anywhere}.telegram-copy{font-size:11px;padding:0;background:transparent}
