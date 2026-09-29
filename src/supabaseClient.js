@@ -225,7 +225,10 @@ export const db = {
       );
 
       const preparedCrews = await Promise.all((crews || []).map(async (crewData) => {
-        const brigadeNumber = Number(crewData.id);
+        const brigadeNumber = Number(crewData.number ?? crewData.id);
+        if (!Number.isInteger(brigadeNumber) || brigadeNumber < 1 || brigadeNumber > 8) {
+          throw new Error("Некорректный номер бригады при редактировании наряда.");
+        }
         let crewId = existingByNumber.get(brigadeNumber);
 
         if (crewId) {
