@@ -683,6 +683,17 @@ function App() {
       const dispatcherId=staff.find(x=>x.role==="dispatcher"&&x.full_name===dispatcher)?.id||null;
       if(editingDutyId){
         const payload=buildAssignments();
+        const paramedicCounts = payload.map(crew => ({
+          brigade: crew.number,
+          count: crew.members.filter(member => member.position === "paramedic" && member.staff_id).length
+        }));
+        const emptyBrigades = paramedicCounts.filter(item => item.count === 0).map(item => item.brigade);
+        if (emptyBrigades.length) {
+          throw new Error(
+            "Не удалось определить сотрудников в бригадах №" + emptyBrigades.join(", №") +
+            ". Изменения не сохранены."
+          );
+        }
         await db.duties.updateFull(editingDutyId,date,dispatcherId,payload,token);
         await loadArchive(token);
         clearDutyDraft(session.user.id);
