@@ -29,6 +29,8 @@ import { hasAssignmentConflict } from "./utils/shiftIntervals";
 import ReportPage from "./components/ReportPage";
 import ExcelDutyImport from "./components/ExcelDutyImport";
 
+const intervalsOverlapSafe = (a,b,c,d) => hasAssignmentConflict({staff_id:"x",start_time:a,end_time:b},{staff_id:"x",start_time:c,end_time:d});
+
 const uid = dutyUid;
 const tomorrow = getTomorrow;
 const newCrews = createNewCrews;
@@ -770,10 +772,6 @@ function App() {
     return { errors: [...new Set(errors)], warnings: [...new Set(warnings)] };
   }, [crews, staff]);
 
-  const intervalsOverlapSafe = (a,b,c,d) => hasAssignmentConflict(
-    {staff_id:"x",start_time:a,end_time:b},
-    {staff_id:"x",start_time:c,end_time:d}
-  );
 
   function updateCrew(nextCrew) {
     setCrews((current) => current.map((crew) => crew.id === nextCrew.id ? nextCrew : crew));
