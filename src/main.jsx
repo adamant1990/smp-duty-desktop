@@ -631,6 +631,7 @@ function App() {
             .filter((member) => member.crew_id === crew.id && member.position === "paramedic")
             .map((member) => ({
               id: uid(),
+              staffId: member.staff_id,
               name: staffMap[member.staff_id] || "",
               shift: member.shift
             })),
@@ -638,6 +639,7 @@ function App() {
             .filter((member) => member.crew_id === crew.id && member.position === "driver")
             .map((member) => ({
               id: uid(),
+              staffId: member.staff_id,
               name: staffMap[member.staff_id] || "",
               shift: member.shift
             }))
@@ -863,6 +865,16 @@ function App() {
         return;
       }
 
+      const existing = await db.duties.findByDate(date, token);
+      const conflictingDuty = (existing || []).find((item) => item.id !== editingDutyId);
+
+      if (conflictingDuty) {
+        setError(
+          `На ${formatDutyDate(date)} уже существует другой наряд. Выберите другую дату или откройте этот наряд из архива.`
+        );
+        return;
+      }
+
       const dispatcherId = staff.find(
         (item) => item.role === "dispatcher" && item.full_name === dispatcher
       )?.id || null;
@@ -895,13 +907,13 @@ function App() {
           const members = [
             ...crewData.paramedics.filter((item) => item.name).map((item) => ({
               crew_id: crewId,
-              staff_id: staff.find((person) => person.role === "paramedic" && person.full_name === item.name)?.id,
+              staff_id: item.staffId || staff.find((person) => person.role === "paramedic" && person.full_name === item.name)?.id,
               position: "paramedic",
               shift: item.shift
             })),
             ...crewData.drivers.filter((item) => item.name).map((item) => ({
               crew_id: crewId,
-              staff_id: staff.find((person) => person.role === "driver" && person.full_name === item.name)?.id,
+              staff_id: item.staffId || staff.find((person) => person.role === "driver" && person.full_name === item.name)?.id,
               position: "driver",
               shift: item.shift
             }))
@@ -913,12 +925,6 @@ function App() {
         await loadArchive(token);
         setMessage(`Наряд на ${formatDutyDate(date)} изменён и сохранён.`);
         setEditingDutyId(null);
-        return;
-      }
-
-      const existing = await db.duties.findByDate(date, token);
-      if (existing?.length) {
-        setError(`На ${formatDutyDate(date)} наряд уже существует в архиве. Если нужно изменить его, откройте архив и нажмите «Редактировать».`);
         return;
       }
 
@@ -938,13 +944,13 @@ function App() {
         const members = [
           ...crewData.paramedics.filter((item) => item.name).map((item) => ({
             crew_id: crew.id,
-            staff_id: staff.find((person) => person.role === "paramedic" && person.full_name === item.name)?.id,
+            staff_id: item.staffId || staff.find((person) => person.role === "paramedic" && person.full_name === item.name)?.id,
             position: "paramedic",
             shift: item.shift
           })),
           ...crewData.drivers.filter((item) => item.name).map((item) => ({
             crew_id: crew.id,
-            staff_id: staff.find((person) => person.role === "driver" && person.full_name === item.name)?.id,
+            staff_id: item.staffId || staff.find((person) => person.role === "driver" && person.full_name === item.name)?.id,
             position: "driver",
             shift: item.shift
           }))
