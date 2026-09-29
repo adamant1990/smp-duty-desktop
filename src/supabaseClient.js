@@ -174,6 +174,13 @@ export const db = {
         body: JSON.stringify(row)
       }, token),
 
+    update: (id, patch, token) =>
+      request(`/rest/v1/duties?id=eq.${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify(patch)
+      }, token),
+
     remove: (id, token) =>
       request(`/rest/v1/duties?id=eq.${encodeURIComponent(id)}`, {
         method: "DELETE"
@@ -193,6 +200,18 @@ export const db = {
         method: "POST",
         headers: { Prefer: "return=representation" },
         body: JSON.stringify(row)
+      }, token),
+
+    update: (id, patch, token) =>
+      request(`/rest/v1/duty_crews?id=eq.${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify(patch)
+      }, token),
+
+    remove: (id, token) =>
+      request(`/rest/v1/duty_crews?id=eq.${encodeURIComponent(id)}`, {
+        method: "DELETE"
       }, token)
   },
 
@@ -209,6 +228,11 @@ export const db = {
             method: "POST",
             body: JSON.stringify(rows)
           }, token)
-        : Promise.resolve([])
+        : Promise.resolve([]),
+
+    removeByCrew: (crewId, token) =>
+      request(`/rest/v1/duty_members?crew_id=eq.${encodeURIComponent(crewId)}`, {
+        method: "DELETE"
+      }, token)
   }
 };
