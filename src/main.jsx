@@ -725,6 +725,8 @@ function App() {
   }
 
   function editDuty(item) {
+    const today = new Date().toLocaleDateString("en-CA");
+    if (!canEditDuty || (!admin && item.date < today)) return;
     setEditingDutyId(item.id);
     setViewingDuty(false);
     setDate(item.date);
@@ -904,7 +906,7 @@ function App() {
               <div className="draft-bar">
                 <div><b>Найден несохранённый черновик наряда</b><span>Дата: {draft.date ? formatDutyDate(draft.date) : "—"}</span></div>
                 <div className="draft-actions">
-                  <button className="primary" onClick={()=>{setDate(draft.date||tomorrow());setDispatcher(draft.dispatcher||"");setCrews(cloneCrewsForForm(draft.crews||newCrews()));setDraft(null);}}>Восстановить</button>
+                  <button className="primary" onClick={()=>{setDate(draft.date||tomorrow());setDispatcher(draft.dispatcher||"");setCrews(cloneCrewsForForm(draft.crews||newCrews()));clearDutyDraft(session.user.id);setDraft(null);}}>Восстановить</button>
                   <button className="secondary" onClick={()=>{clearDutyDraft(session.user.id);setDraft(null);}}>Удалить</button>
                 </div>
               </div>
