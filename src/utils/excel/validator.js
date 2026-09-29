@@ -1,0 +1,8 @@
+import {matchStaff,roleMatches} from "./employees";
+import {hasAssignmentConflict} from "../shiftIntervals";
+export function validateDay(rows,day,staff){
+ const errors=[],warnings=[],assignments=[];
+ for(const row of rows){const cell=row.cells.find(x=>x.day===day);if(!cell||cell.off||!cell.raw||!cell.brigade)continue;const employee=matchStaff(row.name,row.role,staff);if(!employee){errors.push(`Строка ${row.row}: сотрудник «${row.name}» не найден в разделе сотрудников.`);continue;}if(row.role&&!roleMatches(employee,row.role)){errors.push(`Строка ${row.row}: у «${row.name}» указана другая должность.`);continue;}if(cell.invalid){errors.push(`Строка ${row.row}: не распознана смена «${cell.raw}».`);continue;}const a={employee,staff_id:employee.id,role:employee.role,shift:cell.shift,start_time:cell.start_time||null,end_time:cell.end_time||null,brigade:cell.brigade,source:cell.raw};if(a.start_time==null||a.end_time==null){errors.push(`Строка ${row.row}: у «${row.name}» не определён интервал смены.`);continue;}for(const prev of assignments.filter(x=>x.staff_id===a.staff_id)){if(hasAssignmentConflict(prev,a))errors.push(`Конфликт: «${row.name}» назначен на пересекающиеся смены в бригадах №${prev.brigade} и №${a.brigade}.`);}assignments.push(a);}
+ for(let n=1;n<=8;n++){const b=assignments.filter(x=>x.brigade===n),p=b.filter(x=>x.role==="paramedic"),d=b.filter(x=>x.role==="driver");if(!p.length&&!d.length)warnings.push(`Бригада №${n}: в Excel на эту дату нет сотрудников.`);for(let i=0;i<d.length;i++)for(let j=i+1;j<d.length;j++)if(hasAssignmentConflict(d[i],d[j]))errors.push(`Бригада №${n}: несколько водителей имеют пересекающиеся интервалы смены.`);}
+ return{assignments,errors:[...new Set(errors)],warnings:[...new Set(warnings)]};
+}
