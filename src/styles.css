@@ -117,3 +117,10 @@
 .custom-shift{display:flex;align-items:center;gap:7px}.custom-shift label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:#687780;font-weight:700}.custom-shift input[type=time]{width:100px;height:40px;border:1px solid #d2dde1;border-radius:8px;padding:0 8px}.custom-shift span{margin-top:18px;color:#71808a}
 .shift-control{display:flex;align-items:center;gap:7px;min-width:0}.shift-control>select{flex:0 0 108px}.shift-control:has(.custom-shift){grid-column:2/4}
 @media(max-width:900px){.archive-heading{align-items:stretch;flex-direction:column}.excel-import-controls{grid-template-columns:1fr 1fr}.excel-preview-grid{grid-template-columns:1fr}}
+
+@media print{
+  body{min-width:0;background:#fff}
+  .topbar,.page> .info,.page> .warning,.page> .success-message,.window-controls{display:none!important}
+  .page{display:block!important;max-width:none!important;padding:7mm 9mm!important;margin:0!important}
+  .report-page{display:block!important}.report-controls{display:none!important}.report-table-wrap{border:0;overflow:visible}.report-table th,.report-table td{border:1px solid #000}.report-table{font-size:10px}.report-details{display:block!important}.report-page .page-heading h1{font-size:17px;text-align:center}.report-page .page-heading p{display:none}
+}
