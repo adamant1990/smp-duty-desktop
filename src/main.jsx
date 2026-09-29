@@ -877,50 +877,38 @@ function App() {
       )?.id || null;
 
       if (editingDutyId) {
-        await db.duties.update(editingDutyId, {
-          duty_date: date,
-          dispatcher_id: dispatcherId
-        }, token);
-
-        const existingCrews = await db.crews.list(editingDutyId, token);
-        for (const existingCrew of existingCrews) {
-          await db.members.removeByCrew(existingCrew.id, token);
-          await db.crews.remove(existingCrew.id, token);
-        }
-
-        for (const crewData of crews) {
-          const crew = (await db.crews.add({
-            duty_id: editingDutyId,
-            brigade_number: crewData.id,
-            brigade_type: "Линейная фельдшерская"
-          }, token))[0];
-
-          const members = [
-            ...crewData.paramedics.filter((item) => item.name).map((item) => ({
-              crew_id: crew.id,
-              staff_id: item.staffId || staff.find((person) => person.role === "paramedic" && person.full_name === item.name)?.id,
+        const rpcCrews = crews.map((crew) => ({
+          brigade_number: crew.id,
+          brigade_type: "Линейная фельдшерская",
+          members: [
+            ...crew.paramedics.filter((item) => item.name).map((item) => ({
+              staff_id: item.staffId || staff.find(
+                (person) => person.role === "paramedic" && person.full_name === item.name
+              )?.id,
               position: "paramedic",
               shift: item.shift
             })),
-            ...crewData.drivers.filter((item) => item.name).map((item) => ({
-              crew_id: crew.id,
-              staff_id: item.staffId || staff.find((person) => person.role === "driver" && person.full_name === item.name)?.id,
+            ...crew.drivers.filter((item) => item.name).map((item) => ({
+              staff_id: item.staffId || staff.find(
+                (person) => person.role === "driver" && person.full_name === item.name
+              )?.id,
               position: "driver",
               shift: item.shift
             }))
-          ].filter((item) => item.staff_id);
+          ].filter((item) => item.staff_id)
+        }));
 
-          await db.members.addMany(members, token);
-        }
-
-        const refreshed = await db.crews.list(editingDutyId, token);
-        if (refreshed.length !== 8) {
-          throw new Error("После сохранения в базе найдено не 8 бригад.");
-        }
+        await db.duties.updateFull(
+          editingDutyId,
+          date,
+          dispatcherId,
+          rpcCrews,
+          token
+        );
 
         await loadArchive(token);
-        setMessage("Изменения наряда сохранены.");
         setEditingDutyId(null);
+        setMessage("Изменения наряда сохранены.");
         return;
       }
 
