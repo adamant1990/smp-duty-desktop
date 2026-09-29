@@ -516,6 +516,23 @@ function App() {
     }
   }, [tab]);
 
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const saved = loadDutyDraft(session.user.id);
+    const hasEmployees = saved?.crews?.some(c => c.paramedics?.some(p => p.name) || c.drivers?.some(d => d.name));
+    if (hasEmployees) setDraft(saved);
+    else if (saved) clearDutyDraft(session.user.id);
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!session?.user?.id || editingDutyId || viewingDuty) return;
+    const hasEmployees = crews.some(c => c.paramedics.some(p => p.name) || c.drivers.some(d => d.name));
+    if (!hasEmployees) return;
+    const timer = window.setTimeout(() => saveDutyDraft(session.user.id, {date, dispatcher, crews}), 150);
+    return () => window.clearTimeout(timer);
+  }, [session?.user?.id, editingDutyId, viewingDuty, date, dispatcher, crews]);
+
+
   const paramedics = staff.filter((item) => item.role === "paramedic").map((item) => item.full_name);
   const drivers = staff.filter((item) => item.role === "driver").map((item) => item.full_name);
   const dispatchers = staff.filter((item) => item.role === "dispatcher").map((item) => item.full_name);
