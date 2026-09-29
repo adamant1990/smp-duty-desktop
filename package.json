@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vite",
     "electron": "electron .",
-    "desktop": "concurrently -k "npm:dev" "npm:electron"",
+    "desktop": "concurrently -k \"npm:dev\" \"npm:electron\"",
     "build": "vite build",
     "dist": "npm run build && electron-builder --win nsis portable"
   },
@@ -18,7 +18,8 @@
   "dependencies": {
     "lucide-react": "0.468.0",
     "react": "19.1.1",
-    "react-dom": "19.1.1"
+    "react-dom": "19.1.1",
+    "xlsx-js-style": "1.2.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "5.0.4",
@@ -30,20 +31,9 @@
   "build": {
     "appId": "ru.smp.duty.desktop",
     "productName": "Наряд бригад СМП",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "electron/**/*",
-      "package.json"
-    ],
-    "win": {
-      "target": [
-        "nsis",
-        "portable"
-      ]
-    },
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "electron/**/*", "package.json"],
+    "win": { "target": ["nsis", "portable"] },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
