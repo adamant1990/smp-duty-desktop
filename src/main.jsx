@@ -235,7 +235,7 @@ function CrewCard({ crew, paramedics, drivers, onChange }) {
   );
 }
 
-function ArchivePage({ items, onEdit, onCopy, onDelete, admin, loading }) {
+function ArchivePage({ items, onEdit, onCopy, onDelete, admin, canEdit, loading }) {
   const [selected, setSelected] = useState(null);
 
   const sorted = [...items].sort((a, b) => b.date.localeCompare(a.date));
@@ -328,12 +328,14 @@ function ArchivePage({ items, onEdit, onCopy, onDelete, admin, loading }) {
                         <ClipboardList size={16} /> Открыть
                       </button>
 
-                      <button className="secondary" onClick={(e) => {
-                        e.stopPropagation();
-                        onEdit(item);
-                      }}>
-                        <Pencil size={16} /> Редактировать
-                      </button>
+                      {canEdit && (
+                        <button className="secondary" onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(item);
+                        }}>
+                          <Pencil size={16} /> Редактировать
+                        </button>
+                      )}
 
                       <button className="secondary" onClick={(e) => {
                         e.stopPropagation();
@@ -422,12 +424,14 @@ function ArchivePage({ items, onEdit, onCopy, onDelete, admin, loading }) {
             <div className="archive-preview-footer">
               <span>Составил: {selected.dispatcher || "—"}</span>
               <div className="archive-preview-footer-actions">
-                <button className="secondary" onClick={() => {
-                  onEdit(selected);
-                  setSelected(null);
-                }}>
-                  <Pencil size={17} /> Редактировать
-                </button>
+                {canEdit && (
+                  <button className="secondary" onClick={() => {
+                    onEdit(selected);
+                    setSelected(null);
+                  }}>
+                    <Pencil size={17} /> Редактировать
+                  </button>
+                )}
                 <button className="primary" onClick={() => {
                   onCopy(selected);
                   setSelected(null);
@@ -632,7 +636,7 @@ function App() {
             .map((member) => ({
               id: uid(),
               staffId: member.staff_id,
-              name: staffMap[member.staff_id] || "",
+              name: staffMap[member.staff_id] || "Сотрудник неактивен",
               shift: member.shift
             })),
           drivers: members
@@ -710,6 +714,7 @@ function App() {
   const drivers = staff.filter((item) => item.role === "driver").map((item) => item.full_name);
   const dispatchers = staff.filter((item) => item.role === "dispatcher").map((item) => item.full_name);
   const admin = profileData?.role === "admin";
+  const canEditDuty = admin || profileData?.role === "dispatcher";
   const telegramMap = useMemo(
     () => Object.fromEntries(telegramAccounts.filter((item) => item.is_active).map((item) => [item.staff_id, item])),
     [telegramAccounts]
@@ -809,7 +814,7 @@ function App() {
       [...crew.paramedics, ...crew.drivers].forEach((person) => {
         if (!person.name) return;
 
-        const key = person.name.trim().toLowerCase();
+        const key = person.staffId || person.name.trim().toLowerCase();
         const previous = seen.get(key);
 
         if (previous) {
@@ -1081,6 +1086,7 @@ function App() {
             onCopy={copyDuty}
             onDelete={deleteDuty}
             admin={admin}
+            canEdit={canEditDuty}
             loading={archiveLoading}
           />
         ) : tab === "staff" ? (
