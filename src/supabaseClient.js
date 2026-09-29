@@ -340,9 +340,13 @@ export const db = {
           }, token)
         : Promise.resolve([]),
 
-    removeByCrew: (crewId, token) =>
-      request(`/rest/v1/duty_members?crew_id=eq.${encodeURIComponent(crewId)}`, {
+    removeByCrew: (crewId, token) => {
+      const ids = Array.isArray(crewId) ? crewId : [crewId];
+      if (!ids.length) return Promise.resolve([]);
+      const query = ids.map(encodeURIComponent).join(",");
+      return request(`/rest/v1/duty_members?crew_id=in.(${query})`, {
         method: "DELETE"
-      }, token)
+      }, token);
+    }
   }
 };
