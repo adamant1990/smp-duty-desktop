@@ -563,12 +563,14 @@ function App() {
   const [dispatcher, setDispatcher] = useState("");
   const [crews, setCrews] = useState(newCrews);
   const [telegramAccounts, setTelegramAccounts] = useState([]);
+  const [telegramLink, setTelegramLink] = useState(null);
 
   useEffect(() => {
     if (!message) return undefined;
 
     const timer = window.setTimeout(() => {
       setMessage("");
+      setTelegramLink(null);
     }, 4000);
 
     return () => window.clearTimeout(timer);
@@ -654,8 +656,9 @@ function App() {
         if (p?.role === "admin") {
           try {
             setTelegramAccounts(await db.telegram.list(session.access_token));
-          } catch {
+          } catch (telegramError) {
             setTelegramAccounts([]);
+            setError(telegramError?.message || "Не удалось загрузить привязки Telegram.");
           }
         }
         setDispatcher((current) =>
@@ -709,7 +712,12 @@ function App() {
     const list = await db.staff.list(session.access_token);
     setStaff(list || []);
     if (admin) {
-      try { setTelegramAccounts(await db.telegram.list(session.access_token)); } catch { setTelegramAccounts([]); }
+      try {
+        setTelegramAccounts(await db.telegram.list(session.access_token));
+      } catch (telegramError) {
+        setTelegramAccounts([]);
+        throw telegramError;
+      }
     }
     setDispatcher((current) => current || (list || []).find((item) => item.role === "dispatcher")?.full_name || "");
   }
@@ -733,10 +741,18 @@ function App() {
   }
 
   async function linkTelegram(person) {
+    setError("");
+    setTelegramLink(null);
     try {
-      const code = await db.telegram.createLinkCode(person.id, session.access_token);
-      setMessage(`Код привязки Telegram для ${person.full_name}: ${code}. Передайте этот код сотруднику для привязки через Telegram-бот.`);
-    } catch (err) { setError(err?.message || "Не удалось создать код привязки Telegram."); }
+      const result = await db.telegram.createLinkCode(person.id, session.access_token);
+      if (!result?.bot_link) {
+        throw new Error("Supabase не вернул ссылку привязки Telegram.");
+      }
+      setTelegramLink(result.bot_link);
+      setMessage(`Ссылка привязки Telegram для ${person.full_name} создана. Она действительна 10 минут.`);
+    } catch (err) {
+      setError(err?.message || "Не удалось создать ссылку привязки Telegram.");
+    }
   }
 
   async function unlinkTelegram(person) {
@@ -921,7 +937,29 @@ function App() {
       <main className="page">
         {loading && <div className="info">Загрузка сотрудников и архива из общей базы…</div>}
         {error && <div className="warning">{error}</div>}
-        {message && <div className="success-message">{message}</div>}
+        {message && (
+          <div className="success-message">
+            <div>{message}</div>
+            {telegramLink && (
+              <div className="telegram-link-actions">
+                <a href={telegramLink} target="_blank" rel="noreferrer">{telegramLink}</a>
+                <button
+                  className="link-button telegram-copy"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(telegramLink);
+                      setMessage("Ссылка привязки Telegram скопирована в буфер обмена.");
+                    } catch {
+                      setError("Не удалось скопировать ссылку. Скопируйте её вручную.");
+                    }
+                  }}
+                >
+                  Копировать
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {tab === "archive" ? (
           <ArchivePage
