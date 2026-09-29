@@ -181,6 +181,18 @@ export const db = {
       );
 
       const oldCrewIds = (existingCrews || []).map((crew) => crew.id);
+      const oldMembers = oldCrewIds.length
+        ? await request("/rest/v1/duty_members?crew_id=in.(" + oldCrewIds.map(encodeURIComponent).join(",") + ")&select=crew_id,staff_id,position,shift,start_time,end_time", {}, token)
+        : [];
+      const oldCrewMap = new Map((existingCrews || []).map(crew => [crew.id, Number(crew.brigade_number)]));
+      const oldAssignments = (oldMembers || []).map(member => ({
+        staff_id: member.staff_id,
+        position: member.position,
+        shift: member.shift,
+        start_time: member.start_time,
+        end_time: member.end_time,
+        brigade_number: oldCrewMap.get(member.crew_id)
+      })).filter(x => x.brigade_number != null);
 
       await request("/rest/v1/duties?id=eq." + encodeURIComponent(dutyId), {
         method: "PATCH",
@@ -267,6 +279,29 @@ export const db = {
         await request("/rest/v1/duty_crews?id=in.(" + ids + ")", {
           method: "DELETE"
         }, token);
+      }
+
+      if (oldDutyDate === dutyDate) {
+        try {
+          await request("/functions/v1/telegram-duty-changes", {
+            method: "POST",
+            body: JSON.stringify({
+              duty_id: dutyId,
+              duty_date: dutyDate,
+              old_members: oldAssignments,
+              new_members: preparedCrews.flatMap(crew => crew.members.map(row => ({
+                staff_id: row.staff_id,
+                position: row.position,
+                shift: row.shift,
+                start_time: row.start_time,
+                end_time: row.end_time,
+                brigade_number: crew.brigadeNumber
+              })))
+            })
+          }, token);
+        } catch (e) {
+          console.warn("Telegram duty change notification failed:", e);
+        }
       }
 
       return { success: true, dutyId, oldDutyDate, crewCount: preparedCrews.length };
