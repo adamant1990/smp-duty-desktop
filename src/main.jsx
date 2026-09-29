@@ -428,62 +428,95 @@ function ArchivePage({ items, onCopy, onDelete, admin, loading }) {
   );
 }
 
-function StaffBlock({ title, role, staff, onAdd, onDeactivate, admin }) {
+function StaffBlock({ title, role, staff, telegramMap, onAdd, onEdit, onDeactivate, onLinkTelegram, onUnlinkTelegram, admin }) {
+  const [editingId, setEditingId] = useState(null);
+  const [draft, setDraft] = useState("");
+
   const list = staff.filter((person) => person.role === role);
 
   return (
     <section className="staff-block">
       <div className="staff-block-head">
-        <div>
-          <span>СПРАВОЧНИК</span>
-          <h2>{title}</h2>
-        </div>
+        <div><span>СПРАВОЧНИК</span><h2>{title}</h2></div>
         <span className="staff-count">{list.length}</span>
       </div>
 
       <div className="staff-list">
-        {list.map((person) => (
-          <div className="staff-line" key={person.id}>
-            <input value={person.full_name} readOnly />
-            <button
-              className="icon-btn staff-remove"
-              disabled={!admin}
-              title={admin ? "Деактивировать сотрудника" : "Только администратор"}
-              onClick={() => onDeactivate(person)}
-            >
-              <Trash2 size={16} />
-            </button>
-          </div>
-        ))}
+        {list.map((person) => {
+          const tg = telegramMap[person.id];
+          const editing = editingId === person.id;
+
+          return (
+            <div className="staff-item" key={person.id}>
+              <div className="staff-line">
+                {editing ? (
+                  <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} />
+                ) : (
+                  <input value={person.full_name} readOnly />
+                )}
+
+                {admin && (
+                  editing ? (
+                    <>
+                      <button className="staff-small primary" title="Сохранить" onClick={async () => {
+                        if (draft.trim()) {
+                          await onEdit(person, draft.trim());
+                          setEditingId(null);
+                        }
+                      }}>✓</button>
+                      <button className="staff-small" title="Отмена" onClick={() => setEditingId(null)}>×</button>
+                    </>
+                  ) : (
+                    <button className="staff-small" title="Редактировать" onClick={() => {
+                      setEditingId(person.id);
+                      setDraft(person.full_name);
+                    }}>✎</button>
+                  )
+                )}
+
+                <button className="icon-btn staff-remove" disabled={!admin}
+                  title={admin ? "Деактивировать сотрудника" : "Только администратор"}
+                  onClick={() => onDeactivate(person)}>
+                  <Trash2 size={16} />
+                </button>
+              </div>
+
+              <div className="staff-telegram">
+                {tg ? (
+                  <>
+                    <span className="telegram-linked">Telegram: @{tg.telegram_username || tg.telegram_user_id}</span>
+                    {admin && <button className="link-button" onClick={() => onUnlinkTelegram(person)}>Отвязать</button>}
+                  </>
+                ) : (
+                  admin && <button className="link-button" onClick={() => onLinkTelegram(person)}>Привязать Telegram</button>
+                )}
+              </div>
+            </div>
+          );
+        })}
 
         {!list.length && <div className="staff-empty">Сотрудников нет.</div>}
       </div>
 
-      {admin && (
-        <button className="add staff-add" onClick={() => onAdd(role)}>
-          <Plus size={16} /> Добавить
-        </button>
-      )}
+      {admin && <button className="add staff-add" onClick={() => onAdd(role)}><Plus size={16} /> Добавить</button>}
     </section>
   );
 }
 
-function StaffPage({ staff, admin, onAdd, onDeactivate }) {
+function StaffPage({ staff, admin, telegramMap, onAdd, onEdit, onDeactivate, onLinkTelegram, onUnlinkTelegram }) {
   return (
     <div className="staff-page">
       <div className="page-heading">
         <h1>Сотрудники</h1>
-        <p>{admin ? "Управление активным составом общей базы." : "Просмотр активного состава."}</p>
+        <p>{admin ? "Управление активным составом и привязкой Telegram." : "Просмотр активного состава."}</p>
       </div>
 
-      {!admin && (
-        <div className="info">Изменять список сотрудников может только администратор.</div>
-      )}
+      {!admin && <div className="info">Изменять список сотрудников и привязывать Telegram может только администратор.</div>}
 
       <div className="staff-grid">
-        <StaffBlock title="Фельдшеры" role="paramedic" staff={staff} onAdd={onAdd} onDeactivate={onDeactivate} admin={admin} />
-        <StaffBlock title="Водители" role="driver" staff={staff} onAdd={onAdd} onDeactivate={onDeactivate} admin={admin} />
-        <StaffBlock title="Диспетчеры" role="dispatcher" staff={staff} onAdd={onAdd} onDeactivate={onDeactivate} admin={admin} />
+        <StaffBlock title="Фельдшеры" role="paramedic" staff={staff} telegramMap={telegramMap} onAdd={onAdd} onEdit={onEdit} onDeactivate={onDeactivate} onLinkTelegram={onLinkTelegram} onUnlinkTelegram={onUnlinkTelegram} admin={admin} />
+        <StaffBlock title="Водители" role="driver" staff={staff} telegramMap={telegramMap} onAdd={onAdd} onEdit={onEdit} onDeactivate={onDeactivate} onLinkTelegram={onLinkTelegram} onUnlinkTelegram={onUnlinkTelegram} admin={admin} />
+        <StaffBlock title="Диспетчеры" role="dispatcher" staff={staff} telegramMap={telegramMap} onAdd={onAdd} onEdit={onEdit} onDeactivate={onDeactivate} onLinkTelegram={onLinkTelegram} onUnlinkTelegram={onUnlinkTelegram} admin={admin} />
       </div>
     </div>
   );
@@ -503,6 +536,7 @@ function App() {
   const [date, setDate] = useState(tomorrow());
   const [dispatcher, setDispatcher] = useState("");
   const [crews, setCrews] = useState(newCrews);
+  const [telegramAccounts, setTelegramAccounts] = useState([]);
 
   useEffect(() => {
     restoreSession()
@@ -581,6 +615,13 @@ function App() {
 
         setProfileData(p);
         setStaff(st || []);
+        if (p?.role === "admin") {
+          try {
+            setTelegramAccounts(await db.telegram.list(session.access_token));
+          } catch {
+            setTelegramAccounts([]);
+          }
+        }
         setDispatcher((current) =>
           current ||
           (st || []).find((item) => item.role === "dispatcher")?.full_name ||
@@ -610,55 +651,53 @@ function App() {
   const drivers = staff.filter((item) => item.role === "driver").map((item) => item.full_name);
   const dispatchers = staff.filter((item) => item.role === "dispatcher").map((item) => item.full_name);
   const admin = profileData?.role === "admin";
+  const telegramMap = useMemo(
+    () => Object.fromEntries(telegramAccounts.filter((item) => item.is_active).map((item) => [item.staff_id, item])),
+    [telegramAccounts]
+  );
 
   async function refreshStaff() {
     const list = await db.staff.list(session.access_token);
     setStaff(list || []);
-    setDispatcher((current) =>
-      current || (list || []).find((item) => item.role === "dispatcher")?.full_name || ""
-    );
+    if (admin) {
+      try { setTelegramAccounts(await db.telegram.list(session.access_token)); } catch { setTelegramAccounts([]); }
+    }
+    setDispatcher((current) => current || (list || []).find((item) => item.role === "dispatcher")?.full_name || "");
   }
 
   async function addStaff(role) {
-    const labels = {
-      paramedic: "ФИО фельдшера:",
-      driver: "ФИО водителя:",
-      dispatcher: "ФИО диспетчера:"
-    };
-
-    const name = window.prompt(labels[role] || "ФИО сотрудника:");
+    const labels = { paramedic: "Новый фельдшер", driver: "Новый водитель", dispatcher: "Новый диспетчер" };
+    const name = window.prompt(labels[role] || "Новый сотрудник");
     if (!name?.trim()) return;
-
-    setError("");
-    setMessage("");
-
     try {
-      await db.staff.add({
-        full_name: name.trim(),
-        role,
-        active: true
-      }, session.access_token);
-
+      await db.staff.add({ full_name: name.trim(), role, active: true }, session.access_token);
       await refreshStaff();
-      setMessage("Сотрудник добавлен в активный список.");
-    } catch (err) {
-      setError(err?.message || "Не удалось добавить сотрудника.");
-    }
+      setMessage("Сотрудник добавлен.");
+    } catch (err) { setError(err?.message || "Не удалось добавить сотрудника."); }
   }
 
-  async function deactivateStaff(person) {
-    if (!window.confirm(`Убрать ${person.full_name} из активного списка?`)) return;
-
-    setError("");
-    setMessage("");
-
+  async function editStaff(person, name) {
     try {
-      await db.staff.update(person.id, { active: false }, session.access_token);
+      await db.staff.update(person.id, { full_name: name }, session.access_token);
       await refreshStaff();
-      setMessage("Сотрудник деактивирован.");
-    } catch (err) {
-      setError(err?.message || "Не удалось деактивировать сотрудника.");
-    }
+      setMessage("Данные сотрудника изменены.");
+    } catch (err) { setError(err?.message || "Не удалось изменить сотрудника."); }
+  }
+
+  async function linkTelegram(person) {
+    try {
+      const code = await db.telegram.createLinkCode(person.id, session.access_token);
+      setMessage(`Код привязки Telegram для ${person.full_name}: ${code}. Передайте этот код сотруднику для привязки через Telegram-бот.`);
+    } catch (err) { setError(err?.message || "Не удалось создать код привязки Telegram."); }
+  }
+
+  async function unlinkTelegram(person) {
+    if (!window.confirm(`Отвязать Telegram у ${person.full_name}?`)) return;
+    try {
+      await db.telegram.unlink(person.id, session.access_token);
+      await refreshStaff();
+      setMessage("Telegram отвязан.");
+    } catch (err) { setError(err?.message || "Не удалось отвязать Telegram."); }
   }
 
   const warnings = useMemo(() => {
@@ -848,8 +887,12 @@ function App() {
           <StaffPage
             staff={staff}
             admin={admin}
+            telegramMap={telegramMap}
             onAdd={addStaff}
+            onEdit={editStaff}
             onDeactivate={deactivateStaff}
+            onLinkTelegram={linkTelegram}
+            onUnlinkTelegram={unlinkTelegram}
           />
         ) : (
           <>
