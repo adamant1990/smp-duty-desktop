@@ -10,6 +10,8 @@ import {
   Monitor,
   Plus,
   Pencil,
+  Maximize2,
+  Minimize2,
   Users,
   Printer,
   RotateCcw,
@@ -236,7 +238,7 @@ function CrewCard({ crew, paramedics, drivers, onChange }) {
   );
 }
 
-function ArchivePage({ items, onEdit, onCopy, onDelete, admin, canEdit, loading }) {
+function ArchivePage({ items, onEdit, onCopy, onPrint, onDelete, admin, canEdit, loading }) {
   const [selected, setSelected] = useState(null);
 
   const sorted = [...items].sort((a, b) => b.date.localeCompare(a.date));
@@ -322,27 +324,11 @@ function ArchivePage({ items, onEdit, onCopy, onDelete, admin, canEdit, loading 
                     </div>
 
                     <div className="archive-actions">
-                      <button className="secondary" onClick={(e) => {
+                      <button className="secondary archive-open-button" onClick={(e) => {
                         e.stopPropagation();
                         setSelected(item);
                       }}>
                         <ClipboardList size={16} /> Открыть
-                      </button>
-
-                      {canEdit && (
-                        <button className="secondary" onClick={(e) => {
-                          e.stopPropagation();
-                          onEdit(item);
-                        }}>
-                          <Pencil size={16} /> Редактировать
-                        </button>
-                      )}
-
-                      <button className="secondary" onClick={(e) => {
-                        e.stopPropagation();
-                        onCopy(item);
-                      }}>
-                        <RotateCcw size={16} /> Копировать
                       </button>
 
                       {admin && (
@@ -425,19 +411,22 @@ function ArchivePage({ items, onEdit, onCopy, onDelete, admin, canEdit, loading 
             <div className="archive-preview-footer">
               <span>Составил: {selected.dispatcher || "—"}</span>
               <div className="archive-preview-footer-actions">
+                <button className="archive-icon-action" title="Печать" onClick={() => onPrint(selected)}>
+                  <Printer size={19} />
+                </button>
                 {canEdit && (
-                  <button className="secondary" onClick={() => {
+                  <button className="archive-icon-action" title="Редактировать" onClick={() => {
                     onEdit(selected);
                     setSelected(null);
                   }}>
-                    <Pencil size={17} /> Редактировать
+                    <Pencil size={19} />
                   </button>
                 )}
-                <button className="primary" onClick={() => {
+                <button className="archive-icon-action" title="Копировать наряд" onClick={() => {
                   onCopy(selected);
                   setSelected(null);
                 }}>
-                  <RotateCcw size={17} /> Копировать наряд
+                  <RotateCcw size={19} />
                 </button>
               </div>
             </div>
@@ -585,6 +574,8 @@ function App() {
   const [editingDutyId, setEditingDutyId] = useState(null);
   const [telegramAccounts, setTelegramAccounts] = useState([]);
   const [telegramLink, setTelegramLink] = useState(null);
+  const [printDuty, setPrintDuty] = useState(null);
+  const [windowMaximized, setWindowMaximized] = useState(false);
 
   useEffect(() => {
     if (!message) return undefined;
@@ -891,34 +882,28 @@ function App() {
           dispatcher_id: dispatcherId
         }, token);
 
+        const existingCrews = await db.crews.list(editingDutyId, token);
+        for (const existingCrew of existingCrews) {
+          await db.members.removeByCrew(existingCrew.id, token);
+          await db.crews.remove(existingCrew.id, token);
+        }
+
         for (const crewData of crews) {
-          let crewId = crewData.dbId;
-
-          if (crewId) {
-            await db.crews.update(crewId, {
-              brigade_number: crewData.id,
-              brigade_type: "Линейная фельдшерская"
-            }, token);
-          } else {
-            const created = (await db.crews.add({
-              duty_id: editingDutyId,
-              brigade_number: crewData.id,
-              brigade_type: "Линейная фельдшерская"
-            }, token))[0];
-            crewId = created.id;
-          }
-
-          await db.members.removeByCrew(crewId, token);
+          const crew = (await db.crews.add({
+            duty_id: editingDutyId,
+            brigade_number: crewData.id,
+            brigade_type: "Линейная фельдшерская"
+          }, token))[0];
 
           const members = [
             ...crewData.paramedics.filter((item) => item.name).map((item) => ({
-              crew_id: crewId,
+              crew_id: crew.id,
               staff_id: item.staffId || staff.find((person) => person.role === "paramedic" && person.full_name === item.name)?.id,
               position: "paramedic",
               shift: item.shift
             })),
             ...crewData.drivers.filter((item) => item.name).map((item) => ({
-              crew_id: crewId,
+              crew_id: crew.id,
               staff_id: item.staffId || staff.find((person) => person.role === "driver" && person.full_name === item.name)?.id,
               position: "driver",
               shift: item.shift
@@ -928,8 +913,13 @@ function App() {
           await db.members.addMany(members, token);
         }
 
+        const refreshed = await db.crews.list(editingDutyId, token);
+        if (refreshed.length !== 8) {
+          throw new Error("После сохранения в базе найдено не 8 бригад.");
+        }
+
         await loadArchive(token);
-        setMessage(`Наряд на ${formatDutyDate(date)} изменён и сохранён.`);
+        setMessage("Изменения наряда сохранены.");
         setEditingDutyId(null);
         return;
       }
@@ -1001,6 +991,11 @@ function App() {
     setMessage("Наряд загружен на завтрашнюю дату. Проверьте состав и сохраните.");
   }
 
+  function printArchiveDuty(item) {
+    setPrintDuty(item);
+    window.setTimeout(() => window.desktopApp?.print?.(), 80);
+  }
+
   async function deleteDuty(id) {
     if (!window.confirm("Удалить этот наряд из архива?")) return;
 
@@ -1051,6 +1046,21 @@ function App() {
           <span className="user-name">{profileData?.full_name || session.user?.email}</span>
           <button className="tab" onClick={logout}><LogOut size={17} /> Выйти</button>
         </div>
+
+        <div className="window-controls" aria-label="Управление окном">
+          <button className="window-control" title="Свернуть" onClick={() => window.desktopApp?.minimize?.()}>
+            <Minimize2 size={15} />
+          </button>
+          <button className="window-control" title={windowMaximized ? "Восстановить" : "Развернуть"} onClick={async () => {
+            const maximized = await window.desktopApp?.toggleMaximize?.();
+            setWindowMaximized(Boolean(maximized));
+          }}>
+            {windowMaximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+          </button>
+          <button className="window-control close" title="Закрыть" onClick={() => window.desktopApp?.close?.()}>
+            <X size={16} />
+          </button>
+        </div>
       </header>
 
       <main className="page">
@@ -1085,6 +1095,7 @@ function App() {
             items={archive}
             onEdit={editDuty}
             onCopy={copyDuty}
+            onPrint={printArchiveDuty}
             onDelete={deleteDuty}
             admin={admin}
             canEdit={canEditDuty}
@@ -1163,14 +1174,15 @@ function App() {
       </main>
 
       {tab === "duty" && (
-        <>
-          <PrintView
-            date={date}
-            dispatcher={dispatcher}
-            crews={crews}
-          />
+        <PrintView date={date} dispatcher={dispatcher} crews={crews} />
+      )}
 
-        </>
+      {printDuty && (
+        <PrintView
+          date={printDuty.date}
+          dispatcher={printDuty.dispatcher}
+          crews={printDuty.crews}
+        />
       )}
     </>
   );
