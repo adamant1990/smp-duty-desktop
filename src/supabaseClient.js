@@ -171,6 +171,8 @@ export const db = {
       );
 
       if (!duties?.[0]) throw new Error("Наряд не найден.");
+      if (dutyDate < new Date().toLocaleDateString("en-CA")) throw new Error("Редактирование этого наряда уже закрыто: дата наряда прошла.");
+      if (!Array.isArray(crews) || crews.length !== 8) throw new Error("Наряд должен содержать 8 бригад.");
 
       const oldDutyDate = duties[0].duty_date || null;
 
@@ -246,7 +248,9 @@ export const db = {
               crew_id: crewId,
               staff_id: item.staffId,
               position: "paramedic",
-              shift: item.shift || "24"
+              shift: item.shift || "24",
+              start_time: item.start_time || "08:00",
+              end_time: item.end_time || "08:00"
             })),
           ...(crewData.drivers || [])
             .filter((item) => item.name)
@@ -254,7 +258,9 @@ export const db = {
               crew_id: crewId,
               staff_id: item.staffId,
               position: "driver",
-              shift: item.shift || "day"
+              shift: item.shift || "day",
+              start_time: item.start_time || (item.shift === "night" ? "20:00" : "08:00"),
+              end_time: item.end_time || (item.shift === "night" ? "08:00" : "20:00")
             }))
         ].filter((item) => item.staff_id);
 
