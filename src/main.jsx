@@ -796,6 +796,11 @@ function App() {
             <Archive size={17} /> Архив
           </button>
           {admin && (
+            <button className={`tab ${tab === "report" ? "active" : ""}`} onClick={() => setTab("report")}>
+              <FileText size={17} /> Отчёт
+            </button>
+          )}
+          {admin && (
             <button className={`tab ${tab === "staff" ? "active" : ""}`} onClick={() => setTab("staff")}>
               <Users size={17} /> Сотрудники
             </button>
