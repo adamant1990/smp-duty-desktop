@@ -1,0 +1,7 @@
+export const BRIGADE_COLORS=Object.freeze({1:"#1B5E20",2:"#0D47A1",3:"#d413ed",4:"#6A1B9A",5:"#4E342E",6:"#E65100",7:"#13d7ed",8:"#eaed13"});
+const aliases={...Object.fromEntries(Object.entries(BRIGADE_COLORS).map(([n,c])=>[c.slice(1).toUpperCase(),Number(n)])),FFFF00:8,FFFFFF00:8,FF0000:3,FFFF0000:3,"00FF00":1,FF00FF00:1,"008000":1,FF008000:1,"0000FF":2,FF0000FF:2};
+const indexed={8:"000000",9:"FFFFFF",10:"FF0000",11:"00FF00",12:"0000FF",13:"FFFF00",14:"FF00FF",15:"00FFFF"};
+const normalize=c=>{if(!c)return null;const v=String(c).replace(/^#/,"").toUpperCase();if(/^[0-9A-F]{8}$/.test(v))return v.slice(-6);if(/^[0-9A-F]{6}$/.test(v))return v;if(/^[0-9A-F]{3}$/.test(v))return v.split("").map(x=>x+x).join("");return null};
+const colorValue=c=>normalize(c?.rgb||c?.argb||c?.value)||(c?.indexed!=null?indexed[c.indexed]:null);
+export function brigadeFromColor(color){const raw=String(color||"").replace(/^#/,"").toUpperCase(),n=normalize(raw);return aliases[raw]||(n?aliases[n]:null);}
+export function cellFillColor(cell){for(const fill of [cell?.s?.fill,cell?.s,cell?.fill]){for(const c of [fill?.fgColor,fill?.bgColor,fill?.pattern?.fgColor,fill?.pattern?.bgColor]){const v=colorValue(c);if(v)return "#"+v;}}return null;}
