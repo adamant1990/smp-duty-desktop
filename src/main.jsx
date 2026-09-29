@@ -987,13 +987,13 @@ function PrintView({ date, dispatcher, crews }) {
               <td>{crew.paramedics.map((person) => <div key={person.id}>{person.name || "—"}</div>)}</td>
               <td>{crew.paramedics.map((person) => (
                 <div key={person.id}>
-                  {person.name ? (person.shift === "24" ? "24 ч." : person.shift === "day" ? "день" : "ночь") : "—"}
+                  {person.name ? (person.shift === "24" ? "24 ч." : person.shift === "day" ? "день" : person.shift === "night" ? "ночь" : `${person.start_time || "08:00"}–${person.end_time || "16:00"}`) : "—"}
                 </div>
               ))}</td>
               <td>{crew.drivers.map((person) => <div key={person.id}>{person.name || "—"}</div>)}</td>
               <td>{crew.drivers.map((person) => (
                 <div key={person.id}>
-                  {person.name ? (person.shift === "day" ? "день" : "ночь") : "—"}
+                  {person.name ? (person.shift === "day" ? "день" : person.shift === "night" ? "ночь" : `${person.start_time || "08:00"}–${person.end_time || "16:00"}`) : "—"}
                 </div>
               ))}</td>
             </tr>
