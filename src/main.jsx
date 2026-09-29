@@ -852,7 +852,9 @@ function App() {
           </div>
         )}
 
-        {tab === "report" && admin ? (\n          <ReportPage items={archive} staff={staff} onPrint={() => window.desktopApp?.print?.()} />\n        ) : tab === "archive" ? (
+        {tab === "report" && admin ? (
+          <ReportPage items={archive} staff={staff} onPrint={() => window.desktopApp?.print?.()} />
+        ) : tab === "archive" ? (
           <ArchivePage
             items={archive}
             onEdit={editDuty}
