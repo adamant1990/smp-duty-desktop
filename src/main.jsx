@@ -191,203 +191,56 @@ function CrewCard({ crew, paramedics, drivers, onChange, viewing = false }) {
   </article>;
 }
 
-function ArchivePage({ items, onEdit, onCopy, onPrint, onDelete, admin, canEdit, loading }) {
-  const [selected, setSelected] = useState(null);
-
-  const sorted = [...items].sort((a, b) => b.date.localeCompare(a.date));
-  const ordered = [...items].sort((a, b) => a.date.localeCompare(b.date));
-
-  const selectedIndex = selected
-    ? ordered.findIndex((item) => item.id === selected.id)
-    : -1;
-
-  const hasPrev = selectedIndex > 0;
-  const hasNext = selectedIndex >= 0 && selectedIndex < ordered.length - 1;
-
-  function changeSelected(direction) {
-    if (selectedIndex < 0) return;
-
-    const nextIndex = selectedIndex + direction;
-
-    if (nextIndex >= 0 && nextIndex < ordered.length) {
-      setSelected(ordered[nextIndex]);
-    }
-  }
-
-  const weeks = sorted.reduce((acc, item) => {
-    const d = new Date(item.date + "T00:00:00");
-    const day = (d.getDay() + 6) % 7;
-    const monday = new Date(d);
-    monday.setDate(d.getDate() - day);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    const key = monday.toISOString().slice(0, 10);
-
-    if (!acc[key]) {
-      acc[key] = {
-        key,
-        label:
-          monday.toLocaleDateString("ru-RU", { day: "2-digit", month: "long" }) +
-          " — " +
-          sunday.toLocaleDateString("ru-RU", { day: "2-digit", month: "long", year: "numeric" }),
-        items: []
-      };
-    }
-
-    acc[key].items.push(item);
-    return acc;
-  }, {});
-
-  const weekList = Object.values(weeks);
-
-  return (
-    <div className="archive-page">
-      <div className="page-heading">
-        <h1>Наряды</h1>
-        <p>Сохранённые наряды из общей базы.</p>
-      </div>
-
-      {loading ? (
-        <div className="empty">Загрузка архива…</div>
-      ) : !items.length ? (
-        <div className="empty">
-          <Archive size={38} />
-          <h2>Нарядов пока нет</h2>
-          <p>Сохраните первый наряд.</p>
-        </div>
-      ) : (
-        <div className="archive-weeks">
-          {weekList.map((week) => (
-            <section className="archive-week" key={week.key}>
-              <div className="archive-week-title">
-                <b>▼ {week.label}</b>
-                <span>{week.items.length} {week.items.length === 1 ? "наряд" : "наряда"}</span>
-              </div>
-
-              <div className="archive-week-list">
-                {week.items.map((item) => (
-                  <article className="archive-card" key={item.id}
-                    onClick={() => setSelected(item)}>
-                    <div className="archive-main">
-                      <div className="archive-date">{formatDutyDate(item.date)}</div>
-                      <div className="archive-info">
-                        <b>{formatDay(item.date)}</b>
-                        <span>{item.crews.length} бригад · Составил: {item.dispatcher || "—"}</span>
-                      </div>
-                    </div>
-
-                    <div className="archive-actions">
-                      <button className="secondary archive-open-button" onClick={(e) => {
-                        e.stopPropagation();
-                        setSelected(item);
-                      }}>
-                        <ClipboardList size={16} /> Открыть
-                      </button>
-
-                      {admin && (
-                        <button className="danger" title="Удалить" onClick={(e) => {
-                          e.stopPropagation();
-                          onDelete(item.id);
-                        }}>
-                          <Trash2 size={17} />
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-      )}
-
-      {selected && (
-        <div className="archive-overlay" onClick={() => setSelected(null)}>
-          <div className="archive-preview" onClick={(e) => e.stopPropagation()}>
-            <div className="archive-preview-head">
-              <div className="archive-preview-date-controls">
-                <button
-                  className="icon-btn archive-nav"
-                  disabled={!hasPrev}
-                  onClick={() => changeSelected(-1)}
-                  title="Предыдущий наряд"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-
-                <div className="archive-preview-date">
-                  <b>{formatDutyDate(selected.date)}</b>
-                  <span>{formatDay(selected.date)}</span>
-                </div>
-
-                <button
-                  className="icon-btn archive-nav"
-                  disabled={!hasNext}
-                  onClick={() => changeSelected(1)}
-                  title="Следующий наряд"
-                >
-                  <ChevronRight size={20} />
-                </button>
-              </div>
-
-              <button className="icon-btn archive-preview-close" onClick={() => setSelected(null)} title="Закрыть">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="archive-preview-list">
-              {selected.crews.map((crew) => (
-                <div className="archive-preview-crew" key={crew.id}>
-                  <div className="archive-preview-number">№ {crew.id}</div>
-
-                  <div className="archive-preview-person">
-                    <span>ФЕЛЬДШЕРЫ</span>
-                    {crew.paramedics.length
-                      ? crew.paramedics.map((person) => (
-                        <b key={person.id}>{person.name || "—"} <em>{person.shift}</em></b>
-                      ))
-                      : <b>—</b>}
-                  </div>
-
-                  <div className="archive-preview-person">
-                    <span>ВОДИТЕЛИ</span>
-                    {crew.drivers.length
-                      ? crew.drivers.map((person) => (
-                        <b key={person.id}>{person.name || "—"} <em>{person.shift}</em></b>
-                      ))
-                      : <b>—</b>}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="archive-preview-footer">
-              <span>Составил: {selected.dispatcher || "—"}</span>
-              <div className="archive-preview-footer-actions">
-                <button className="archive-icon-action" title="Печать" onClick={() => onPrint(selected)}>
-                  <Printer size={19} />
-                </button>
-                {canEdit && (
-                  <button className="archive-icon-action" title="Редактировать" onClick={() => {
-                    onEdit(selected);
-                    setSelected(null);
-                  }}>
-                    <Pencil size={19} />
-                  </button>
-                )}
-                <button className="archive-icon-action" title="Копировать наряд" onClick={() => {
-                  onCopy(selected);
-                  setSelected(null);
-                }}>
-                  <RotateCcw size={19} />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+function ArchivePage({items,onEdit,onCopy,onPrint,onDelete,admin,canEdit,loading}) {
+  const [selected,setSelected]=useState(null),[query,setQuery]=useState(""),[expandedWeeks,setExpandedWeeks]=useState(null);
+  const sorted=[...items].sort((a,b)=>b.date.localeCompare(a.date));
+  const q=query.trim().toLowerCase();
+  const filtered=useMemo(()=>!q?sorted:sorted.filter(item=>{
+    const values=[item.date,formatDutyDate(item.date),formatDay(item.date),item.dispatcher,...item.crews.flatMap(c=>[...(c.paramedics||[]),...(c.drivers||[])].map(p=>p.name))];
+    return values.some(v=>String(v||"").toLowerCase().includes(q));
+  }),[items,q]);
+  const weeks=filtered.reduce((acc,item)=>{
+    const d=new Date(item.date+"T00:00:00"),day=(d.getDay()+6)%7,m=new Date(d);
+    m.setDate(d.getDate()-day);const key=m.toLocaleDateString("en-CA");
+    const sun=new Date(m);sun.setDate(m.getDate()+6);
+    if(!acc[key])acc[key]={key,label:`${m.toLocaleDateString("ru-RU",{day:"2-digit",month:"long"})} — ${sun.toLocaleDateString("ru-RU",{day:"2-digit",month:"long",year:"numeric"})}`,items:[]};
+    acc[key].items.push(item);return acc;
+  },{});
+  const weekList=Object.values(weeks),latest=weekList[0]?.key;
+  const openWeek=key=>expandedWeeks?expandedWeeks.has(key):key===latest;
+  const toggleWeek=key=>setExpandedWeeks(prev=>{const next=new Set(prev||[latest]);next.has(key)?next.delete(key):next.add(key);return next;});
+  const ordered=[...filtered].sort((a,b)=>a.date.localeCompare(b.date));
+  const idx=selected?ordered.findIndex(x=>x.id===selected.id):-1;
+  const move=dir=>{const n=idx+dir;if(n>=0&&n<ordered.length)setSelected(ordered[n]);};
+  return <div className="archive-page">
+    <div className="page-heading archive-heading"><div><h1>Наряды</h1><p>Сохранённые наряды сгруппированы по неделям.</p></div>
+      <div className="archive-search"><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск по дате, диспетчеру, фельдшеру или водителю"/>{query&&<button className="icon-btn" onClick={()=>setQuery("")}>×</button>}</div>
     </div>
-  );
+    {loading?<div className="empty">Загрузка архива…</div>:!items.length?<div className="empty"><Archive size={38}/><h2>Нарядов пока нет</h2><p>Сохраните первый наряд.</p></div>:!filtered.length?<div className="empty"><h2>Ничего не найдено</h2><p>Измените запрос.</p></div>:
+    <div className="archive-weeks">{weekList.map(w=>{const open=openWeek(w.key);return <section className="archive-week" key={w.key}>
+      <div className="archive-week-title" onClick={()=>toggleWeek(w.key)}><b>{open?"▼":"▶"} {w.label}</b><span>{w.items.length} наряд(ов)</span></div>
+      {open&&<div className="archive-week-list">{w.items.map(item=><article className="archive-card" key={item.id} onClick={()=>setSelected(item)}>
+        <div className="archive-main"><div className="archive-date">{formatDutyDate(item.date)}</div><div className="archive-info"><b>{formatDay(item.date)}</b><span>{item.crews.length} бригад · Составил: {item.dispatcher||"—"}</span></div></div>
+        <div className="archive-actions"><button className="secondary" onClick={e=>{e.stopPropagation();setSelected(item);}}><ClipboardList size={16}/> Открыть</button>{admin&&<button className="danger" onClick={e=>{e.stopPropagation();onDelete(item.id);}} title="Удалить"><Trash2 size={17}/></button>}</div>
+      </article>)}</div>}
+    </section>})}</div>}
+    {selected&&<div className="archive-overlay" onClick={()=>setSelected(null)}><div className="archive-preview" onClick={e=>e.stopPropagation()}>
+      <div className="archive-preview-head"><div className="archive-preview-date-controls">
+        <button className="icon-btn archive-nav" disabled={idx<=0} onClick={()=>move(-1)}><ChevronLeft size={20}/></button>
+        <div className="archive-preview-date"><b>{formatDutyDate(selected.date)}</b><span>{formatDay(selected.date)}</span></div>
+        <button className="icon-btn archive-nav" disabled={idx<0||idx>=ordered.length-1} onClick={()=>move(1)}><ChevronRight size={20}/></button>
+      </div><button className="icon-btn archive-preview-close" onClick={()=>setSelected(null)}><X size={20}/></button></div>
+      <div className="archive-preview-list">{selected.crews.map(crew=><div className="archive-preview-crew" key={crew.id}><div className="archive-preview-number">№ {crew.id}</div>
+        <div className="archive-preview-person"><span>ФЕЛЬДШЕРЫ</span>{crew.paramedics?.length?crew.paramedics.map(p=><b key={p.id}>{p.name||"—"} <em>{p.shift}</em></b>):<b>—</b>}</div>
+        <div className="archive-preview-person"><span>ВОДИТЕЛИ</span>{crew.drivers?.length?crew.drivers.map(p=><b key={p.id}>{p.name||"—"} <em>{p.shift}</em></b>):<b>—</b>}</div>
+      </div>)}</div>
+      <div className="archive-preview-footer"><span>Составил: {selected.dispatcher||"—"}</span><div className="archive-preview-footer-actions">
+        <button className="archive-icon-action" title="Печать" onClick={()=>onPrint(selected)}><Printer size={19}/></button>
+        {canEdit&&(admin||selected.date>=new Date().toLocaleDateString("en-CA"))&&<button className="archive-icon-action" title="Редактировать" onClick={()=>{onEdit(selected);setSelected(null);}}><Pencil size={19}/></button>}
+        <button className="archive-icon-action" title="Копировать наряд" onClick={()=>{onCopy(selected);setSelected(null);}}><RotateCcw size={19}/></button>
+      </div></div>
+    </div></div>}
+  </div>;
 }
 
 function StaffBlock({ title, role, staff, telegramMap, onAdd, onEdit, onDeactivate, onLinkTelegram, onUnlinkTelegram, admin }) {
