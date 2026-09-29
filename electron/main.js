@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain } from "electron";
+import { app, BrowserWindow, shell, ipcMain, Menu } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -6,6 +6,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const isDev = !app.isPackaged;
+
+Menu.setApplicationMenu(null);
 
 ipcMain.handle("print-document", async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
@@ -30,6 +32,7 @@ function createWindow() {
     height: 950,
     minWidth: 1100,
     minHeight: 700,
+    frame: false,
     backgroundColor: "#f5f6f8",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -37,6 +40,27 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: true
     }
+  });
+
+  ipcMain.removeHandler("window-minimize");
+  ipcMain.removeHandler("window-toggle-maximize");
+  ipcMain.removeHandler("window-close");
+
+  ipcMain.handle("window-minimize", () => {
+    win.minimize();
+  });
+
+  ipcMain.handle("window-toggle-maximize", () => {
+    if (win.isMaximized()) {
+      win.unmaximize();
+    } else {
+      win.maximize();
+    }
+    return win.isMaximized();
+  });
+
+  ipcMain.handle("window-close", () => {
+    win.close();
   });
 
   win.webContents.setWindowOpenHandler(({ url }) => {
