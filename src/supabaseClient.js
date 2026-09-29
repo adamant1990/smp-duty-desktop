@@ -157,6 +157,17 @@ export const db = {
   },
 
   duties: {
+    updateFull: (dutyId, dutyDate, dispatcherId, crews, token) =>
+      request("/rest/v1/rpc/update_duty_full", {
+        method: "POST",
+        body: JSON.stringify({
+          p_duty_id: dutyId,
+          p_duty_date: dutyDate,
+          p_dispatcher_id: dispatcherId,
+          p_crews: crews
+        })
+      }, token),
+
     list: (token) =>
       request("/rest/v1/duties?select=*&order=duty_date.desc,created_at.desc", {}, token),
 
