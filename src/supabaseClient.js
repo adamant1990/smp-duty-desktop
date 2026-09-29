@@ -173,6 +173,15 @@ export const db = {
       if (!duties?.[0]) throw new Error("Наряд не найден.");
       if (dutyDate < new Date().toLocaleDateString("en-CA")) throw new Error("Редактирование этого наряда уже закрыто: дата наряда прошла.");
       if (!Array.isArray(crews) || crews.length !== 8) throw new Error("Наряд должен содержать 8 бригад.");
+      const missingParamedics = crews
+        .filter(crew => !(crew.members || []).some(member => member.position === "paramedic" && member.staff_id))
+        .map(crew => Number(crew.number));
+      if (missingParamedics.length) {
+        throw new Error(
+          "Нельзя сохранить пустой состав. Не определён фельдшер в бригадах №" +
+          missingParamedics.join(", №") + "."
+        );
+      }
 
       const oldDutyDate = duties[0].duty_date || null;
       const dateConflicts = await request("/rest/v1/duties?duty_date=eq." + encodeURIComponent(dutyDate) + "&id=neq." + encodeURIComponent(dutyId) + "&select=id", {}, token);
@@ -270,11 +279,27 @@ export const db = {
       }));
 
       const rows = preparedCrews.flatMap((crew) => crew.members);
-      if (rows.length) {
-        await request("/rest/v1/duty_members", {
-          method: "POST",
-          body: JSON.stringify(rows)
-        }, token);
+      if (!rows.length) {
+        throw new Error("Новый состав наряда пуст. Старый состав не был изменён.");
+      }
+
+      await request("/rest/v1/duty_members", {
+        method: "POST",
+        body: JSON.stringify(rows)
+      }, token);
+
+      const savedMembers = await request(
+        "/rest/v1/duty_members?crew_id=in.(" +
+        preparedCrews.map(crew => encodeURIComponent(crew.crewId)).join(",") +
+        ")&select=id,crew_id,staff_id,position,shift,start_time,end_time",
+        {},
+        token
+      );
+
+      if (!Array.isArray(savedMembers) || savedMembers.length !== rows.length) {
+        throw new Error(
+          "Состав наряда не был полностью записан в базу. Сохранение остановлено."
+        );
       }
 
       const used = new Set((crews || []).map((crew) => Number(crew.id)));
