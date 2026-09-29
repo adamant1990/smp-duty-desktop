@@ -154,6 +154,11 @@ export const db = {
         method: "POST",
         body: JSON.stringify({ p_staff_id: staffId })
       }, token)
+,
+    publishDutyChanges: (body, token) => request("/functions/v1/telegram-duty-changes", {
+      method: "POST",
+      body: JSON.stringify(body)
+    }, token)
   },
 
   duties: {
