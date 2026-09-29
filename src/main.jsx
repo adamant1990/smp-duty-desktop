@@ -17,41 +17,29 @@ import {
   RotateCcw,
   Save,
   Trash2,
-  X
+  X,
+  FileText
 } from "lucide-react";
 import "./styles.css";
 import { db, profile, restoreSession, signIn, signOut } from "./supabaseClient";
+import { shiftTimes, newCrews as createNewCrews, uid as dutyUid, tomorrow as getTomorrow } from "./utils/duty";
+import { cloneCrewsForForm, getAssignmentWarnings } from "./utils/dutyState";
+import { saveDutyDraft, loadDutyDraft, clearDutyDraft } from "./utils/dutyDraft";
+import { hasAssignmentConflict } from "./utils/shiftIntervals";
+import ReportPage from "./components/ReportPage";
+import ExcelDutyImport from "./components/ExcelDutyImport";
 
-const uid = () => crypto.randomUUID();
-
-const tomorrow = () => {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
-};
+const uid = dutyUid;
+const tomorrow = getTomorrow;
+const newCrews = createNewCrews;
 
 const formatDutyDate = (value) =>
   new Date(value + "T00:00:00").toLocaleDateString("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric"
+    day: "2-digit", month: "2-digit", year: "numeric"
   });
 
 const formatDay = (value) =>
-  new Date(value + "T00:00:00").toLocaleDateString("ru-RU", {
-    weekday: "long"
-  });
-
-const newCrew = (number) => ({
-  id: number,
-  paramedics: [{ id: uid(), name: "", shift: "24" }],
-  drivers: [
-    { id: uid(), name: "", shift: "day" },
-    { id: uid(), name: "", shift: "night" }
-  ]
-});
-
-const newCrews = () => Array.from({ length: 8 }, (_, i) => newCrew(i + 1));
+  new Date(value + "T00:00:00").toLocaleDateString("ru-RU", { weekday: "long" });
 
 function Login({ onReady }) {
   const [email, setEmail] = useState("");
@@ -162,80 +150,43 @@ function SearchSelect({ value, list, placeholder, onChange }) {
   );
 }
 
-function CrewCard({ crew, paramedics, drivers, onChange }) {
+function CrewCard({ crew, paramedics, drivers, onChange, viewing = false }) {
   function updateMember(type, id, patch) {
-    onChange({
-      ...crew,
-      [type]: crew[type].map((item) =>
-        item.id === id ? { ...item, ...patch } : item
-      )
-    });
+    onChange({...crew,[type]:crew[type].map(item=>item.id===id?{...item,...patch}:item)});
   }
-
   function addParamedic() {
-    onChange({
-      ...crew,
-      paramedics: [...crew.paramedics, { id: uid(), name: "", shift: "24" }]
-    });
+    onChange({...crew,paramedics:[...crew.paramedics,{id:uid(),name:"",shift:"24",start_time:"08:00",end_time:"08:00"}]});
   }
-
   function removeParamedic(id) {
-    onChange({
-      ...crew,
-      paramedics: crew.paramedics.filter((item) => item.id !== id)
-    });
+    onChange({...crew,paramedics:crew.paramedics.filter(item=>item.id!==id)});
   }
-
-  return (
-    <article className="crew">
-      <div className="crew-title">
-        <div>
-          <span>БРИГАДА</span>
-          <strong>№ {crew.id}</strong>
+  function changeShift(type,id,shift) {
+    const t=shiftTimes(shift);
+    updateMember(type,id,{shift,start_time:t.start,end_time:t.end});
+  }
+  return <article className="crew">
+    <div className="crew-title"><div><span>БРИГАДА</span><strong>№ {crew.id}</strong></div><span className="crew-type">Линейная фельдшерская</span></div>
+    <div className="rows">
+      {crew.paramedics.map((person,index)=><div className="row" key={person.id}>
+        <div className="role">Фельдшер {index+1}</div>
+        <SearchSelect value={person.name} list={paramedics} placeholder="Начните вводить фамилию" onChange={name=>updateMember("paramedics",person.id,{name})}/>
+        <div className="shift-control">
+          <select value={person.shift||"24"} disabled={viewing} onChange={e=>changeShift("paramedics",person.id,e.target.value)}>
+            <option value="24">24 часа</option><option value="day">День</option><option value="night">Ночь</option><option value="other">Другое</option>
+          </select>
+          {person.shift==="other"&&<div className="custom-shift"><label>Начало<input type="time" value={person.start_time||"08:00"} disabled={viewing} onChange={e=>updateMember("paramedics",person.id,{shift:"other",start_time:e.target.value})}/></label><span>→</span><label>Конец<input type="time" value={person.end_time||"16:00"} disabled={viewing} onChange={e=>updateMember("paramedics",person.id,{shift:"other",end_time:e.target.value})}/></label></div>}
         </div>
-        <span className="crew-type">Линейная фельдшерская</span>
-      </div>
-
-      <div className="rows">
-        {crew.paramedics.map((person, index) => (
-          <div className="row" key={person.id}>
-            <div className="role">Фельдшер {index + 1}</div>
-            <SearchSelect value={person.name} list={paramedics}
-              placeholder="Начните вводить фамилию"
-              onChange={(name) => updateMember("paramedics", person.id, { name })} />
-            <select value={person.shift}
-              onChange={(e) => updateMember("paramedics", person.id, { shift: e.target.value })}>
-              <option value="24">24 часа</option>
-              <option value="day">День</option>
-              <option value="night">Ночь</option>
-            </select>
-            {crew.paramedics.length > 1
-              ? <button className="icon-btn" title="Удалить" onClick={() => removeParamedic(person.id)}><X size={17} /></button>
-              : <span />}
-          </div>
-        ))}
-
-        {crew.paramedics.length < 4 && (
-          <button className="add" onClick={addParamedic}><Plus size={16} /> Добавить фельдшера</button>
-        )}
-
-        {crew.drivers.map((person, index) => (
-          <div className="row driver" key={person.id}>
-            <div className="role">Водитель {index === 0 ? "день" : "ночь"}</div>
-            <SearchSelect value={person.name} list={drivers}
-              placeholder="Начните вводить фамилию"
-              onChange={(name) => updateMember("drivers", person.id, { name })} />
-            <select value={person.shift}
-              onChange={(e) => updateMember("drivers", person.id, { shift: e.target.value })}>
-              <option value="day">День</option>
-              <option value="night">Ночь</option>
-            </select>
-            <span />
-          </div>
-        ))}
-      </div>
-    </article>
-  );
+        {crew.paramedics.length>1?<button className="icon-btn" disabled={viewing} title="Удалить" onClick={()=>removeParamedic(person.id)}><X size={17}/></button>:<span/>}
+      </div>)}
+      {crew.paramedics.length<4&&!viewing&&<button className="add" onClick={addParamedic}><Plus size={16}/> Добавить фельдшера</button>}
+      {crew.drivers.map((person,index)=><div className="row driver" key={person.id}>
+        <div className="role">Водитель {index===0?"день":"ночь"}</div>
+        <SearchSelect value={person.name} list={drivers} placeholder="Начните вводить фамилию" onChange={name=>updateMember("drivers",person.id,{name,shift:index?"night":"day",start_time:index?"20:00":"08:00",end_time:index?"08:00":"20:00"})}/>
+        <span/>
+        <span/>
+      </div>)}
+    </div>
+  </article>;
 }
 
 function ArchivePage({ items, onEdit, onCopy, onPrint, onDelete, admin, canEdit, loading }) {
