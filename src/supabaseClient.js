@@ -163,173 +163,124 @@ export const db = {
 
   duties: {
     updateFull: async (dutyId, dutyDate, dispatcherId, crews, token) => {
-      // Повторяем рабочую логику web-версии refactor/main-structure.
+      // Вся замена состава выполняется одной PostgreSQL-транзакцией через RPC.
+      // При любой ошибке PostgreSQL откатывает всю операцию.
+      if (!Array.isArray(crews) || crews.length !== 8) {
+        throw new Error("Наряд должен содержать 8 бригад.");
+      }
+
+      const numbers = crews.map((crew) => Number(crew.number ?? crew.id));
+      const unique = [...new Set(numbers)].sort((a, b) => a - b);
+      if (unique.length !== 8 || unique.some((number, index) => number !== index + 1)) {
+        throw new Error("Наряд должен содержать все 8 бригад №1–№8.");
+      }
+
+      const missingParamedics = crews
+        .filter((crew) =>
+          !(crew.members || []).some(
+            (member) => member.position === "paramedic" && member.staff_id
+          )
+        )
+        .map((crew) => Number(crew.number ?? crew.id));
+
+      if (missingParamedics.length) {
+        throw new Error(
+          "Нельзя сохранить пустой состав. Не определён фельдшер в бригадах №" +
+          missingParamedics.join(", №") +
+          ". Старый состав не изменён."
+        );
+      }
+
       const duties = await request(
         "/rest/v1/duties?id=eq." + encodeURIComponent(dutyId) + "&select=id,duty_date",
         {},
         token
       );
-
       if (!duties?.[0]) throw new Error("Наряд не найден.");
-      if (dutyDate < new Date().toLocaleDateString("en-CA")) throw new Error("Редактирование этого наряда уже закрыто: дата наряда прошла.");
-      if (!Array.isArray(crews) || crews.length !== 8) throw new Error("Наряд должен содержать 8 бригад.");
-      const missingParamedics = crews
-        .filter(crew => !(crew.members || []).some(member => member.position === "paramedic" && member.staff_id))
-        .map(crew => Number(crew.number));
-      if (missingParamedics.length) {
-        throw new Error(
-          "Нельзя сохранить пустой состав. Не определён фельдшер в бригадах №" +
-          missingParamedics.join(", №") + "."
-        );
-      }
 
       const oldDutyDate = duties[0].duty_date || null;
-      const dateConflicts = await request("/rest/v1/duties?duty_date=eq." + encodeURIComponent(dutyDate) + "&id=neq." + encodeURIComponent(dutyId) + "&select=id", {}, token);
-      if (dateConflicts?.length) throw new Error("На указанную дату уже существует другой наряд.");
 
       const existingCrews = await request(
-        "/rest/v1/duty_crews?duty_id=eq." + encodeURIComponent(dutyId) + "&select=id,brigade_number",
+        "/rest/v1/duty_crews?duty_id=eq." + encodeURIComponent(dutyId) +
+        "&select=id,brigade_number",
         {},
         token
       );
 
       const oldCrewIds = (existingCrews || []).map((crew) => crew.id);
-      const oldMembers = oldCrewIds.length
-        ? await request("/rest/v1/duty_members?crew_id=in.(" + oldCrewIds.map(encodeURIComponent).join(",") + ")&select=crew_id,staff_id,position,shift,start_time,end_time", {}, token)
-        : [];
-      const oldCrewMap = new Map((existingCrews || []).map(crew => [crew.id, Number(crew.brigade_number)]));
-      const oldAssignments = (oldMembers || []).map(member => ({
-        staff_id: member.staff_id,
-        position: member.position,
-        shift: member.shift,
-        start_time: member.start_time,
-        end_time: member.end_time,
-        brigade_number: oldCrewMap.get(member.crew_id)
-      })).filter(x => x.brigade_number != null);
-
-      await request("/rest/v1/duties?id=eq." + encodeURIComponent(dutyId), {
-        method: "PATCH",
-        headers: { Prefer: "return=minimal" },
-        body: JSON.stringify({ duty_date: dutyDate, dispatcher_id: dispatcherId })
-      }, token);
-
-      const existingByNumber = new Map(
-        (existingCrews || []).map((crew) => [Number(crew.brigade_number), crew.id])
+      const oldCrewMap = new Map(
+        (existingCrews || []).map((crew) => [crew.id, Number(crew.brigade_number)])
       );
+      const oldMembers = oldCrewIds.length
+        ? await request(
+            "/rest/v1/duty_members?crew_id=in.(" +
+            oldCrewIds.map(encodeURIComponent).join(",") +
+            ")&select=crew_id,staff_id,position,shift,start_time,end_time",
+            {},
+            token
+          )
+        : [];
 
-      const preparedCrews = await Promise.all((crews || []).map(async (crewData) => {
-        const brigadeNumber = Number(crewData.number ?? crewData.id);
-        if (!Number.isInteger(brigadeNumber) || brigadeNumber < 1 || brigadeNumber > 8) {
-          throw new Error("Некорректный номер бригады при редактировании наряда.");
-        }
-        let crewId = existingByNumber.get(brigadeNumber);
+      const oldAssignments = (oldMembers || [])
+        .map((member) => ({
+          staff_id: member.staff_id,
+          position: member.position,
+          shift: member.shift,
+          start_time: member.start_time,
+          end_time: member.end_time,
+          brigade_number: oldCrewMap.get(member.crew_id)
+        }))
+        .filter((item) => item.brigade_number != null);
 
-        if (crewId) {
-          await request("/rest/v1/duty_crews?id=eq." + encodeURIComponent(crewId), {
-            method: "PATCH",
-            headers: { Prefer: "return=minimal" },
-            body: JSON.stringify({
-              brigade_number: brigadeNumber,
-              brigade_type: "Линейная фельдшерская"
-            })
-          }, token);
-        } else {
-          const created = await request("/rest/v1/duty_crews", {
-            method: "POST",
-            headers: { Prefer: "return=representation" },
-            body: JSON.stringify({
-              duty_id: dutyId,
-              brigade_number: brigadeNumber,
-              brigade_type: "Линейная фельдшерская"
-            })
-          }, token);
-          crewId = created?.[0]?.id;
-        }
-
-        if (!crewId) throw new Error("Не удалось обновить бригаду №" + brigadeNumber + ".");
-
-        const members = (crewData.members || [])
-          .filter((item) => item.staff_id)
-          .map((item) => ({
-            crew_id: crewId,
-            staff_id: item.staff_id,
-            position: item.position,
-            shift: item.shift,
-            start_time: item.start_time,
-            end_time: item.end_time
-          }));
-
-        return { brigadeNumber, crewId, members };
-      }));
-
-      const rows = preparedCrews.flatMap((crew) => crew.members);
-      if (!rows.length) {
-        throw new Error("Новый состав наряда пуст. Старый состав не был изменён.");
-      }
-
-      if (oldCrewIds.length) {
-        const ids = oldCrewIds.map(encodeURIComponent).join(",");
-        await request("/rest/v1/duty_members?crew_id=in.(" + ids + ")", {
-          method: "DELETE"
-        }, token);
-      }
-
-      await request("/rest/v1/duty_members", {
-        method: "POST",
-        body: JSON.stringify(rows)
-      }, token);
-
-      const savedMembers = await request(
-        "/rest/v1/duty_members?crew_id=in.(" +
-        preparedCrews.map(crew => encodeURIComponent(crew.crewId)).join(",") +
-        ")&select=id,crew_id,staff_id,position,shift,start_time,end_time",
-        {},
+      const result = await request(
+        "/rest/v1/rpc/update_duty_full",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            p_duty_id: dutyId,
+            p_duty_date: dutyDate,
+            p_dispatcher_id: dispatcherId,
+            p_crews: crews
+          })
+        },
         token
       );
 
-      if (!Array.isArray(savedMembers) || savedMembers.length !== rows.length) {
-        throw new Error(
-          "Состав наряда не был полностью записан в базу. Сохранение остановлено."
-        );
-      }
-
-      const used = new Set((crews || []).map((crew) => Number(crew.number ?? crew.id)));
-      const unusedCrewIds = (existingCrews || [])
-        .filter((crew) => !used.has(Number(crew.brigade_number)))
-        .map((crew) => crew.id);
-
-      if (unusedCrewIds.length) {
-        const ids = unusedCrewIds.map(encodeURIComponent).join(",");
-        await request("/rest/v1/duty_crews?id=in.(" + ids + ")", {
-          method: "DELETE"
-        }, token);
+      if (!result?.success || Number(result.member_count) <= 0) {
+        throw new Error("Состав наряда не был записан. Старый состав не изменён.");
       }
 
       if (oldDutyDate === dutyDate) {
         try {
-          await request("/functions/v1/telegram-duty-changes", {
-            method: "POST",
-            body: JSON.stringify({
-              duty_id: dutyId,
-              duty_date: dutyDate,
-              old_members: oldAssignments,
-              new_members: preparedCrews.flatMap(crew => crew.members.map(row => ({
-                staff_id: row.staff_id,
-                position: row.position,
-                shift: row.shift,
-                start_time: row.start_time,
-                end_time: row.end_time,
-                brigade_number: crew.brigadeNumber
-              })))
-            })
-          }, token);
+          await request(
+            "/functions/v1/telegram-duty-changes",
+            {
+              method: "POST",
+              body: JSON.stringify({
+                duty_id: dutyId,
+                duty_date: dutyDate,
+                old_members: oldAssignments,
+                new_members: crews.flatMap((crew) =>
+                  (crew.members || []).map((row) => ({
+                    staff_id: row.staff_id,
+                    position: row.position,
+                    shift: row.shift,
+                    start_time: row.start_time,
+                    end_time: row.end_time,
+                    brigade_number: Number(crew.number ?? crew.id)
+                  }))
+                )
+              })
+            },
+            token
+          );
         } catch (e) {
           console.warn("Telegram duty change notification failed:", e);
         }
       }
 
-      return { success: true, dutyId, oldDutyDate, crewCount: preparedCrews.length };
-    },
+      return result;
+    },,
 
     list: (token) =>
       request("/rest/v1/duties?select=*&order=duty_date.desc,created_at.desc", {}, token),
