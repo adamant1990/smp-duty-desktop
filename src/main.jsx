@@ -625,8 +625,14 @@ function App() {
       if (!drivers.length) warnings.push(`Бригада №${crew.id}: не указан водитель.`);
       [...crew.paramedics, ...crew.drivers].forEach(person => {
         if (!person.name) return;
-        const staffId = person.staffId || staff.find(x => x.full_name === person.name)?.id;
+        const staffId =
+          person.staffId ||
+          person.staff_id ||
+          staff.find(x => x.role === (person in crew.paramedics ? "paramedic" : "driver") && x.full_name === person.name)?.id;
         const times = shiftTimes(person.shift, person.start_time, person.end_time);
+        if (!staffId) {
+          errors.push(`${person.name}: сотрудник не найден в активном справочнике.`);
+        }
         const key = staffId || person.name.trim().toLowerCase();
         const previous = seen.get(key) || [];
         previous.forEach(prev => {
@@ -661,14 +667,24 @@ function App() {
     members: [
       ...c.paramedics.filter(p=>p.name).map(p=> {
         const times=shiftTimes(p.shift,p.start_time,p.end_time);
-        // В архиве ID сотрудника хранится в duty_members.staff_id.
-        // Сначала определяем ID по текущему ФИО, затем используем сохранённый ID.
         const staffId =
           staff.find(x=>x.role==="paramedic"&&x.full_name===p.name)?.id ||
           p.staffId ||
           p.staff_id ||
           null;
-        return {staff_id:staffId,position:"paramedic",shift:p.shift,start_time:times.start,end_time:times.end};
+        if (!staffId) {
+          throw new Error(
+            "Не удалось определить фельдшера «" + p.name +
+            "» в бригаде №" + c.id + ". Старый состав не изменён."
+          );
+        }
+        return {
+          staff_id:staffId,
+          position:"paramedic",
+          shift:p.shift,
+          start_time:times.start,
+          end_time:times.end
+        };
       }),
       ...c.drivers.filter(p=>p.name).map(p=> {
         const times=shiftTimes(p.shift,p.start_time,p.end_time);
@@ -677,9 +693,21 @@ function App() {
           p.staffId ||
           p.staff_id ||
           null;
-        return {staff_id:staffId,position:"driver",shift:p.shift,start_time:times.start,end_time:times.end};
+        if (!staffId) {
+          throw new Error(
+            "Не удалось определить водителя «" + p.name +
+            "» в бригаде №" + c.id + ". Старый состав не изменён."
+          );
+        }
+        return {
+          staff_id:staffId,
+          position:"driver",
+          shift:p.shift,
+          start_time:times.start,
+          end_time:times.end
+        };
       })
-    ].filter(x=>x.staff_id)
+    ]
   }));
 
   async function saveDuty() {
