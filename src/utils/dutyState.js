@@ -3,8 +3,18 @@ import { intervalsOverlap } from "./shiftIntervals";
 
 export const cloneCrewsForForm = crews => (crews || []).map(crew => ({
   ...crew,
-  paramedics: (crew.paramedics || []).map(p => ({ ...p, id: uid(), ...shiftTimes(p.shift, p.start_time, p.end_time) })),
-  drivers: (crew.drivers || []).map(p => ({ ...p, id: uid(), ...shiftTimes(p.shift, p.start_time, p.end_time) }))
+  paramedics: (crew.paramedics || []).map(p => ({
+    ...p,
+    id: uid(),
+    staffId: p.staffId || p.staff_id || null,
+    ...shiftTimes(p.shift, p.start_time, p.end_time)
+  })),
+  drivers: (crew.drivers || []).map(p => ({
+    ...p,
+    id: uid(),
+    staffId: p.staffId || p.staff_id || null,
+    ...shiftTimes(p.shift, p.start_time, p.end_time)
+  }))
 }));
 
 export const getAssignmentWarnings = crews => {
