@@ -996,13 +996,14 @@ function App() {
               </div>
             )}
             {!editingDutyId && !viewingDuty && <div className="template-bar"><ExcelDutyImport /></div>}
-            {(validation.errors.length > 0 || validation.warnings.length > 0) && (
-              <div className="warning">
-                <b>Проверка наряда</b>
-                {validation.errors.map((item) => <div key={`error-${item}`}>Ошибка: {item}</div>)}
-                {validation.warnings.map((item) => <div key={`warning-${item}`}>Предупреждение: {item}</div>)}
-              </div>
-            )}
+            {(dispatcher.trim() || crews.some(crew => [...crew.paramedics, ...crew.drivers].some(person => person.name?.trim()))) &&
+              (validation.errors.length > 0 || validation.warnings.length > 0) && (
+                <div className="warning">
+                  <b>Проверка наряда</b>
+                  {validation.errors.map((item) => <div key={`error-${item}`}>Ошибка: {item}</div>)}
+                  {validation.warnings.map((item) => <div key={`warning-${item}`}>Предупреждение: {item}</div>)}
+                </div>
+              )}
 
             {!staff.length && !loading && (
               <div className="warning">В общей базе пока нет активных сотрудников.</div>
