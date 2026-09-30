@@ -25,11 +25,9 @@ import { db, profile, restoreSession, signIn, signOut } from "./supabaseClient";
 import { shiftTimes, newCrews as createNewCrews, uid as dutyUid, tomorrow as getTomorrow } from "./utils/duty";
 import { cloneCrewsForForm, getAssignmentWarnings } from "./utils/dutyState";
 import { saveDutyDraft, loadDutyDraft, clearDutyDraft } from "./utils/dutyDraft";
-import { hasAssignmentConflict } from "./utils/shiftIntervals";
+import { intervalsOverlap } from "./utils/shiftIntervals";
 import ReportPage from "./components/ReportPage";
 import ExcelDutyImport from "./components/ExcelDutyImport";
-
-const intervalsOverlapSafe = (a,b,c,d) => hasAssignmentConflict({staff_id:"x",start_time:a,end_time:b},{staff_id:"x",start_time:c,end_time:d});
 
 const uid = dutyUid;
 const tomorrow = getTomorrow;
@@ -677,7 +675,7 @@ function App() {
         const key = staffId || person.name.trim().toLowerCase();
         const previous = seen.get(key) || [];
         previous.forEach(prev => {
-          if (intervalsOverlapSafe(prev.start_time, prev.end_time, times.start, times.end)) {
+          if (intervalsOverlap(prev.start_time, prev.end_time, times.start, times.end)) {
             errors.push(`${person.name}: пересекающаяся смена в бригадах №${prev.crewId} и №${crew.id}.`);
           }
         });
