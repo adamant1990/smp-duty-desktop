@@ -255,28 +255,16 @@ export const db = {
 
         if (!crewId) throw new Error("Не удалось обновить бригаду №" + brigadeNumber + ".");
 
-        const members = [
-          ...(crewData.paramedics || [])
-            .filter((item) => item.name)
-            .map((item) => ({
-              crew_id: crewId,
-              staff_id: item.staffId,
-              position: "paramedic",
-              shift: item.shift || "24",
-              start_time: item.start_time || "08:00",
-              end_time: item.end_time || "08:00"
-            })),
-          ...(crewData.drivers || [])
-            .filter((item) => item.name)
-            .map((item) => ({
-              crew_id: crewId,
-              staff_id: item.staffId,
-              position: "driver",
-              shift: item.shift || "day",
-              start_time: item.start_time || (item.shift === "night" ? "20:00" : "08:00"),
-              end_time: item.end_time || (item.shift === "night" ? "08:00" : "20:00")
-            }))
-        ].filter((item) => item.staff_id);
+        const members = (crewData.members || [])
+          .filter((item) => item.staff_id)
+          .map((item) => ({
+            crew_id: crewId,
+            staff_id: item.staff_id,
+            position: item.position,
+            shift: item.shift,
+            start_time: item.start_time,
+            end_time: item.end_time
+          }));
 
         return { brigadeNumber, crewId, members };
       }));
