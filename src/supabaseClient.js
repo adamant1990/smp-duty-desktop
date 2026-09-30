@@ -293,7 +293,7 @@ export const db = {
         );
       }
 
-      const used = new Set((crews || []).map((crew) => Number(crew.id)));
+      const used = new Set((crews || []).map((crew) => Number(crew.number ?? crew.id)));
       const unusedCrewIds = (existingCrews || [])
         .filter((crew) => !used.has(Number(crew.brigade_number)))
         .map((crew) => crew.id);
