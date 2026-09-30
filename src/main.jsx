@@ -158,6 +158,14 @@ function SearchSelect({ value, list, placeholder, onChange }) {
           onChange(nextValue);
           setOpen(true);
         }}
+        onKeyDown={(e) => {
+          if (e.key === "Backspace" && e.currentTarget.value) {
+            e.preventDefault();
+            setQuery("");
+            onChange("");
+            setOpen(true);
+          }
+        }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
       />
 
