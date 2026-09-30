@@ -1051,8 +1051,22 @@ function App() {
 }
 
 function PrintView({ date, dispatcher, crews }) {
-  return (
-    <div className="print">
+  const rows = (crews || []).map((crew) => (
+    <tr key={crew.id}>
+      <td>{crew.id}</td>
+      <td>{(crew.paramedics || []).map((person) => <div key={person.id}>{person.name || "—"}</div>)}</td>
+      <td>{(crew.paramedics || []).map((person) => (
+        <div key={person.id}>{person.name ? formatArchiveShift(person) : "—"}</div>
+      ))}</td>
+      <td>{(crew.drivers || []).map((person) => <div key={person.id}>{person.name || "—"}</div>)}</td>
+      <td>{(crew.drivers || []).map((person) => (
+        <div key={person.id}>{person.name ? formatArchiveShift(person) : "—"}</div>
+      ))}</td>
+    </tr>
+  ));
+
+  const copy = (suffix) => (
+    <section className="print-copy" key={suffix}>
       <h1>НАРЯД БРИГАД СКОРОЙ МЕДИЦИНСКОЙ ПОМОЩИ</h1>
       <div className="print-meta">
         <span>Дата: <b>{formatDutyDate(date)}</b></span>
@@ -1063,33 +1077,17 @@ function PrintView({ date, dispatcher, crews }) {
           <tr>
             <th>Бригада</th>
             <th>Фельдшеры</th>
-            <th>Режим</th>
+            <th>Время</th>
             <th>Водители</th>
-            <th>Режим</th>
+            <th>Время</th>
           </tr>
         </thead>
-        <tbody>
-          {crews.map((crew) => (
-            <tr key={crew.id}>
-              <td>{crew.id}</td>
-              <td>{crew.paramedics.map((person) => <div key={person.id}>{person.name || "—"}</div>)}</td>
-              <td>{crew.paramedics.map((person) => (
-                <div key={person.id}>
-                  {person.name ? (person.shift === "24" ? "24 ч." : person.shift === "day" ? "день" : person.shift === "night" ? "ночь" : `${person.start_time || "08:00"}–${person.end_time || "16:00"}`) : "—"}
-                </div>
-              ))}</td>
-              <td>{crew.drivers.map((person) => <div key={person.id}>{person.name || "—"}</div>)}</td>
-              <td>{crew.drivers.map((person) => (
-                <div key={person.id}>
-                  {person.name ? (person.shift === "day" ? "день" : person.shift === "night" ? "ночь" : `${person.start_time || "08:00"}–${person.end_time || "16:00"}`) : "—"}
-                </div>
-              ))}</td>
-            </tr>
-          ))}
-        </tbody>
+        <tbody>{rows}</tbody>
       </table>
-    </div>
+    </section>
   );
+
+  return <div className="print">{[copy("first"), copy("second")]}</div>;
 }
 
 createRoot(document.getElementById("root")).render(
