@@ -154,7 +154,18 @@ function SearchSelect({ value, list, placeholder, onChange }) {
 
 function CrewCard({ crew, paramedics, drivers, onChange, viewing = false }) {
   function updateMember(type, id, patch) {
-    onChange({...crew,[type]:crew[type].map(item=>item.id===id?{...item,...patch}:item)});
+    onChange({
+      ...crew,
+      [type]: crew[type].map(item => {
+        if (item.id !== id) return item;
+        const next = { ...item, ...patch };
+        if (Object.prototype.hasOwnProperty.call(patch, "name")) {
+          next.staffId = null;
+          next.staff_id = null;
+        }
+        return next;
+      })
+    });
   }
   function addParamedic() {
     onChange({...crew,paramedics:[...crew.paramedics,{id:uid(),name:"",shift:"24",start_time:"08:00",end_time:"08:00"}]});
