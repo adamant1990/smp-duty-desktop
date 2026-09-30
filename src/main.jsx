@@ -153,8 +153,9 @@ function SearchSelect({ value, list, placeholder, onChange }) {
         autoComplete="off"
         onFocus={() => setOpen(true)}
         onChange={(e) => {
-          setQuery(e.target.value);
-          onChange("");
+          const nextValue = e.target.value;
+          setQuery(nextValue);
+          onChange(nextValue);
           setOpen(true);
         }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
