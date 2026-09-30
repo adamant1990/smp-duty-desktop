@@ -661,11 +661,13 @@ function App() {
     members: [
       ...c.paramedics.filter(p=>p.name).map(p=> {
         const times=shiftTimes(p.shift,p.start_time,p.end_time);
-        return {staff_id:p.staffId || staff.find(x=>x.role==="paramedic"&&x.full_name===p.name)?.id,position:"paramedic",shift:p.shift,start_time:times.start,end_time:times.end};
+        const staffId=staff.find(x=>x.role==="paramedic"&&x.full_name===p.name)?.id;
+        return {staff_id:staffId,position:"paramedic",shift:p.shift,start_time:times.start,end_time:times.end};
       }),
       ...c.drivers.filter(p=>p.name).map(p=> {
         const times=shiftTimes(p.shift,p.start_time,p.end_time);
-        return {staff_id:p.staffId || staff.find(x=>x.role==="driver"&&x.full_name===p.name)?.id,position:"driver",shift:p.shift,start_time:times.start,end_time:times.end};
+        const staffId=staff.find(x=>x.role==="driver"&&x.full_name===p.name)?.id;
+        return {staff_id:staffId,position:"driver",shift:p.shift,start_time:times.start,end_time:times.end};
       })
     ].filter(x=>x.staff_id)
   }));
@@ -683,17 +685,6 @@ function App() {
       const dispatcherId=staff.find(x=>x.role==="dispatcher"&&x.full_name===dispatcher)?.id||null;
       if(editingDutyId){
         const payload=buildAssignments();
-        const paramedicCounts = payload.map(crew => ({
-          brigade: crew.number,
-          count: crew.members.filter(member => member.position === "paramedic" && member.staff_id).length
-        }));
-        const emptyBrigades = paramedicCounts.filter(item => item.count === 0).map(item => item.brigade);
-        if (emptyBrigades.length) {
-          throw new Error(
-            "Не удалось определить сотрудников в бригадах №" + emptyBrigades.join(", №") +
-            ". Изменения не сохранены."
-          );
-        }
         await db.duties.updateFull(editingDutyId,date,dispatcherId,payload,token);
         await loadArchive(token);
         clearDutyDraft(session.user.id);
