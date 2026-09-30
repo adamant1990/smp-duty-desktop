@@ -652,6 +652,9 @@ function App() {
     const errors = [];
     const warnings = [];
     const brigadeNumbers = new Set(crews.map(c => c.id));
+    const dutyStarted = crews.some(crew =>
+      [...crew.paramedics, ...crew.drivers].some(person => person.name?.trim())
+    );
 
     if (crews.length !== 8 || brigadeNumbers.size !== 8 || [...brigadeNumbers].some(n => n < 1 || n > 8)) {
       errors.push("В наряде должны присутствовать все 8 бригад: №1–№8.");
@@ -661,8 +664,10 @@ function App() {
       const paramedics = crew.paramedics.filter(p => p.name?.trim());
       const drivers = crew.drivers.filter(p => p.name?.trim());
 
-      if (!paramedics.length) warnings.push(`Бригада №${crew.id}: не указан ни один фельдшер.`);
-      if (!drivers.length) warnings.push(`Бригада №${crew.id}: не указан водитель.`);
+      // Не показываем предупреждения о пустых бригадах сразу после входа.
+      // Они становятся видимыми только после начала заполнения наряда.
+      if (dutyStarted && !paramedics.length) warnings.push(`Бригада №${crew.id}: не указан ни один фельдшер.`);
+      if (dutyStarted && !drivers.length) warnings.push(`Бригада №${crew.id}: не указан водитель.`);
 
       const checkPerson = (person, role) => {
         const name = person.name?.trim();
