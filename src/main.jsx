@@ -661,7 +661,7 @@ function App() {
       const paramedics = crew.paramedics.filter(p => p.name?.trim());
       const drivers = crew.drivers.filter(p => p.name?.trim());
 
-      if (!paramedics.length) errors.push(`Бригада №${crew.id}: не указан ни один фельдшер.`);
+      if (!paramedics.length) warnings.push(`Бригада №${crew.id}: не указан ни один фельдшер.`);
       if (!drivers.length) warnings.push(`Бригада №${crew.id}: не указан водитель.`);
 
       const checkPerson = (person, role) => {
