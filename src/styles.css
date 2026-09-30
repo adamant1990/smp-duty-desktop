@@ -120,7 +120,7 @@
 
 @media print{
   body{min-width:0;background:#fff}
-  .topbar,.page> .info,.page> .warning,.page> .success-message,.window-controls,.archive-overlay{display:none!important}
-  .page{display:block!important;max-width:none!important;padding:7mm 9mm!important;margin:0!important}
-  .report-page{display:block!important}.report-controls{display:none!important}.report-table-wrap{border:0;overflow:visible}.report-table th,.report-table td{border:1px solid #000}.report-table{font-size:10px}.report-details{display:block!important}.report-page .page-heading h1{font-size:17px;text-align:center}.report-page .page-heading p{display:none}
+  .topbar,.page,.window-controls,.archive-overlay{display:none!important}
+  .print{display:block!important;padding:7mm 9mm;color:#000;font-family:Arial,sans-serif}
+  .report-controls{display:none!important}.report-table-wrap{border:0;overflow:visible}.report-table th,.report-table td{border:1px solid #000}.report-table{font-size:10px}.report-details{display:block!important}.report-page .page-heading h1{font-size:17px;text-align:center}.report-page .page-heading p{display:none}
 }
