@@ -307,15 +307,21 @@ export const db = {
       }
 
       const rows = preparedCrews.flatMap((crew) => crew.members);
-      const expectedParamedics = preparedCrews.length;
       const actualParamedics = rows.filter((row) => row.position === "paramedic").length;
 
-      if (
-        preparedCrews.length !== 8 ||
-        rows.length === 0 ||
-        actualParamedics !== expectedParamedics
-      ) {
-        throw new Error("Новый состав наряда не прошёл проверку. Старый состав не изменён.");
+      // В бригадах может быть разное количество фельдшеров:
+      // часть бригад имеет двух фельдшеров, часть — одного.
+      // Поэтому нельзя требовать ровно 8 фельдшеров на 8 бригад.
+      // Выше уже проверено, что в каждой из 8 бригад есть хотя бы один
+      // фельдшер с корректным staff_id.
+      if (preparedCrews.length !== 8 || actualParamedics < 8 || rows.length === 0) {
+        throw new Error(
+          "Новый состав наряда не прошёл проверку: бригад " +
+          preparedCrews.length +
+          ", фельдшеров " +
+          actualParamedics +
+          ". Старый состав не изменён."
+        );
       }
 
       try {
