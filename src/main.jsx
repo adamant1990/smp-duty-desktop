@@ -45,8 +45,8 @@ const formatDay = (value) =>
 
 const formatTimeShort = (value) => {
   if (!value) return "";
-  const match = String(value).match(/^(\\d{1,2}):\\d{2}/);
-  return match ? String(Number(match[1])) : String(value);
+  const match = String(value).match(/^(${formatTimeShort(person.start_time) || "08:00"}–${formatTimeShort(person.end_time) || "16:00"}${formatTimeShort(person.start_time) || "08:00"}–${formatTimeShort(person.end_time) || "16:00"}d{1,2}):${formatTimeShort(person.start_time) || "08:00"}–${formatTimeShort(person.end_time) || "16:00"}${formatTimeShort(person.start_time) || "08:00"}–${formatTimeShort(person.end_time) || "16:00"}d{2}/);
+  return match ? String(match[1]).padStart(2, "0") + ":" + match[0].slice(match[0].indexOf(":") + 1) : String(value);
 };
 
 const formatArchiveShift = (person) => {
