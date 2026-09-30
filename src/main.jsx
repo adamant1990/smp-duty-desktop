@@ -44,9 +44,9 @@ const formatDay = (value) =>
   new Date(value + "T00:00:00").toLocaleDateString("ru-RU", { weekday: "long" });
 
 const formatArchiveTime = (value, fallback) => {
-  if (value == null || value === "") return fallback;
-  const text = String(value);
-  const match = text.match(/^(\\d{1,2}):(\\d{2})/);
+  if (value == null || value === "" || value === "undefined" || value === "null") return fallback;
+  const text = String(value).trim();
+  const match = text.match(/^(\d{1,2}):(\d{2})/);
   return match ? String(match[1]).padStart(2, "0") + ":" + match[2] : text;
 };
 
@@ -55,9 +55,21 @@ const formatArchiveShift = (person) => {
   if (person.shift === "24") return "8-8";
   if (person.shift === "day") return "8-20";
   if (person.shift === "night") return "20-8";
-  const start = formatArchiveTime(person.start_time, "08:00");
-  const end = formatArchiveTime(person.end_time, "16:00");
-  return start + "-" + end;
+
+  const startValue =
+    person.start_time ??
+    person.startTime ??
+    person.start ??
+    person.time_start ??
+    null;
+  const endValue =
+    person.end_time ??
+    person.endTime ??
+    person.end ??
+    person.time_end ??
+    null;
+
+  return formatArchiveTime(startValue, "08:00") + "-" + formatArchiveTime(endValue, "16:00");
 };
 
 function Login({ onReady }) {
