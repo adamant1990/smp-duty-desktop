@@ -623,15 +623,16 @@ function App() {
       const drivers = crew.drivers.filter(p => p.name);
       if (!paramedics.length) errors.push(`Бригада №${crew.id}: не указан ни один фельдшер.`);
       if (!drivers.length) warnings.push(`Бригада №${crew.id}: не указан водитель.`);
-      [...crew.paramedics, ...crew.drivers].forEach(person => {
+
+      const checkPerson = (person, role) => {
         if (!person.name) return;
         const staffId =
           person.staffId ||
           person.staff_id ||
-          staff.find(x => x.role === (person in crew.paramedics ? "paramedic" : "driver") && x.full_name === person.name)?.id;
+          staff.find(x => x.role === role && x.full_name === person.name)?.id;
         const times = shiftTimes(person.shift, person.start_time, person.end_time);
         if (!staffId) {
-          errors.push(`${person.name}: сотрудник не найден в активном справочнике.`);
+          errors.push(`${person.name}: сотрудник не найден в справочнике.`);
         }
         const key = staffId || person.name.trim().toLowerCase();
         const previous = seen.get(key) || [];
@@ -641,7 +642,10 @@ function App() {
           }
         });
         seen.set(key, [...previous, { crewId: crew.id, start_time: times.start, end_time: times.end }]);
-      });
+      };
+
+      crew.paramedics.forEach(person => checkPerson(person, "paramedic"));
+      crew.drivers.forEach(person => checkPerson(person, "driver"));
     });
     return { errors: [...new Set(errors)], warnings: [...new Set(warnings)] };
   }, [crews, staff]);
@@ -668,9 +672,9 @@ function App() {
       ...c.paramedics.filter(p=>p.name).map(p=> {
         const times=shiftTimes(p.shift,p.start_time,p.end_time);
         const staffId =
-          staff.find(x=>x.role==="paramedic"&&x.full_name===p.name)?.id ||
           p.staffId ||
           p.staff_id ||
+          staff.find(x=>x.role==="paramedic"&&x.full_name===p.name)?.id ||
           null;
         if (!staffId) {
           throw new Error(
@@ -689,9 +693,9 @@ function App() {
       ...c.drivers.filter(p=>p.name).map(p=> {
         const times=shiftTimes(p.shift,p.start_time,p.end_time);
         const staffId =
-          staff.find(x=>x.role==="driver"&&x.full_name===p.name)?.id ||
           p.staffId ||
           p.staff_id ||
+          staff.find(x=>x.role==="driver"&&x.full_name===p.name)?.id ||
           null;
         if (!staffId) {
           throw new Error(
