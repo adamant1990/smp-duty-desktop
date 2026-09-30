@@ -43,12 +43,22 @@ const formatDutyDate = (value) =>
 const formatDay = (value) =>
   new Date(value + "T00:00:00").toLocaleDateString("ru-RU", { weekday: "long" });
 
+const formatTimeShort = (value) => {
+  if (!value) return "";
+  const match = String(value).match(/^(\\d{1,2}):\\d{2}/);
+  return match ? String(Number(match[1])) : String(value);
+};
+
 const formatArchiveShift = (person) => {
   if (person?.shift === "24") return "8–8";
   if (person?.shift === "day") return "8–20";
   if (person?.shift === "night") return "20–8";
-  if (person?.shift === "other") return `${person.start_time || "08:00"}–${person.end_time || "16:00"}`;
-  return person?.start_time && person?.end_time ? `${person.start_time}–${person.end_time}` : "—";
+  if (person?.shift === "other") {
+    return formatTimeShort(person.start_time) + "–" + (formatTimeShort(person.end_time) || "16");
+  }
+  return person?.start_time && person?.end_time
+    ? formatTimeShort(person.start_time) + "–" + formatTimeShort(person.end_time)
+    : "—";
 };
 
 function Login({ onReady }) {
