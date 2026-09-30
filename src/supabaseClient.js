@@ -213,13 +213,6 @@ export const db = {
         body: JSON.stringify({ duty_date: dutyDate, dispatcher_id: dispatcherId })
       }, token);
 
-      if (oldCrewIds.length) {
-        const ids = oldCrewIds.map(encodeURIComponent).join(",");
-        await request("/rest/v1/duty_members?crew_id=in.(" + ids + ")", {
-          method: "DELETE"
-        }, token);
-      }
-
       const existingByNumber = new Map(
         (existingCrews || []).map((crew) => [Number(crew.brigade_number), crew.id])
       );
@@ -272,6 +265,13 @@ export const db = {
       const rows = preparedCrews.flatMap((crew) => crew.members);
       if (!rows.length) {
         throw new Error("Новый состав наряда пуст. Старый состав не был изменён.");
+      }
+
+      if (oldCrewIds.length) {
+        const ids = oldCrewIds.map(encodeURIComponent).join(",");
+        await request("/rest/v1/duty_members?crew_id=in.(" + ids + ")", {
+          method: "DELETE"
+        }, token);
       }
 
       await request("/rest/v1/duty_members", {
