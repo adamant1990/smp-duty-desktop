@@ -657,15 +657,6 @@ function App() {
     }
 
     crews.forEach(crew => {
-      const paramedics = crew.paramedics.filter(p => p.name?.trim());
-      const drivers = crew.drivers.filter(p => p.name?.trim());
-
-      // Показываем предупреждение только для той бригады, которую начали заполнять.
-      // Остальные пустые бригады не должны засорять экран предупреждениями.
-      const crewStarted = paramedics.length > 0 || drivers.length > 0;
-      if (crewStarted && !paramedics.length) warnings.push(`Бригада №${crew.id}: не указан ни один фельдшер.`);
-      if (crewStarted && !drivers.length) warnings.push(`Бригада №${crew.id}: не указан водитель.`);
-
       const checkPerson = (person, role) => {
         const name = person.name?.trim();
         if (!name) return;
