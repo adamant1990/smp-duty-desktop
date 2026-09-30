@@ -36,3 +36,5 @@ npm run dist
 6. Печать.
 7. Windows installer/portable.
 8. Позже — локальная БД и offline/sync.
+
+<!-- stable-main-marker: 2026-09-30 -->
