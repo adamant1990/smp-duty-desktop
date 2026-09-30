@@ -43,6 +43,14 @@ const formatDutyDate = (value) =>
 const formatDay = (value) =>
   new Date(value + "T00:00:00").toLocaleDateString("ru-RU", { weekday: "long" });
 
+const formatArchiveShift = (person) => {
+  if (person?.shift === "24") return "8–8";
+  if (person?.shift === "day") return "8–20";
+  if (person?.shift === "night") return "20–8";
+  if (person?.shift === "other") return `${person.start_time || "08:00"}–${person.end_time || "16:00"}`;
+  return person?.start_time && person?.end_time ? `${person.start_time}–${person.end_time}` : "—";
+};
+
 function Login({ onReady }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -242,8 +250,8 @@ function ArchivePage({items,onEdit,onCopy,onPrint,onDelete,admin,canEdit,loading
         <button className="icon-btn archive-nav" disabled={idx<0||idx>=ordered.length-1} onClick={()=>move(1)}><ChevronRight size={20}/></button>
       </div><button className="icon-btn archive-preview-close" onClick={()=>setSelected(null)}><X size={20}/></button></div>
       <div className="archive-preview-list">{selected.crews.map(crew=><div className="archive-preview-crew" key={crew.id}><div className="archive-preview-number">№ {crew.id}</div>
-        <div className="archive-preview-person"><span>ФЕЛЬДШЕРЫ</span>{crew.paramedics?.length?crew.paramedics.map(p=><b key={p.id}>{p.name||"—"} <em>{p.shift}</em></b>):<b>—</b>}</div>
-        <div className="archive-preview-person"><span>ВОДИТЕЛИ</span>{crew.drivers?.length?crew.drivers.map(p=><b key={p.id}>{p.name||"—"} <em>{p.shift}</em></b>):<b>—</b>}</div>
+        <div className="archive-preview-person"><span>ФЕЛЬДШЕРЫ</span>{crew.paramedics?.length?crew.paramedics.map(p=><b key={p.id}>{p.name||"—"} <em>{formatArchiveShift(p)}</em></b>):<b>—</b>}</div>
+        <div className="archive-preview-person"><span>ВОДИТЕЛИ</span>{crew.drivers?.length?crew.drivers.map(p=><b key={p.id}>{p.name||"—"} <em>{formatArchiveShift(p)}</em></b>):<b>—</b>}</div>
       </div>)}</div>
       <div className="archive-preview-footer"><span>Составил: {selected.dispatcher||"—"}</span><div className="archive-preview-footer-actions">
         <button className="archive-icon-action" title="Печать" onClick={()=>onPrint(selected)}><Printer size={19}/></button>
