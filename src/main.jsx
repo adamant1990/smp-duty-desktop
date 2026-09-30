@@ -651,40 +651,69 @@ function App() {
   const validation = useMemo(() => {
     const errors = [];
     const warnings = [];
-    const seen = new Map();
+    const assignments = [];
     const brigadeNumbers = new Set(crews.map(c => c.id));
+
     if (crews.length !== 8 || brigadeNumbers.size !== 8 || [...brigadeNumbers].some(n => n < 1 || n > 8)) {
       errors.push("В наряде должны присутствовать все 8 бригад: №1–№8.");
     }
+
     crews.forEach(crew => {
-      const paramedics = crew.paramedics.filter(p => p.name);
-      const drivers = crew.drivers.filter(p => p.name);
+      const paramedics = crew.paramedics.filter(p => p.name?.trim());
+      const drivers = crew.drivers.filter(p => p.name?.trim());
+
       if (!paramedics.length) errors.push(`Бригада №${crew.id}: не указан ни один фельдшер.`);
       if (!drivers.length) warnings.push(`Бригада №${crew.id}: не указан водитель.`);
 
-      const checkPerson = (person, role) => {
-        if (!person.name) return;
+      const collectPerson = (person, role) => {
+        const name = person.name?.trim();
+        if (!name) return;
+
         const staffId =
           person.staffId ||
           person.staff_id ||
-          staff.find(x => x.role === role && x.full_name === person.name)?.id;
+          staff.find(x => x.role === role && x.full_name === name)?.id ||
+          null;
         const times = shiftTimes(person.shift, person.start_time, person.end_time);
+
         if (!staffId) {
-          errors.push(`${person.name}: сотрудник не найден в справочнике.`);
+          errors.push(`${name}: сотрудник не найден в справочнике.`);
         }
-        const key = staffId || person.name.trim().toLowerCase();
-        const previous = seen.get(key) || [];
-        previous.forEach(prev => {
-          if (intervalsOverlap(prev.start_time, prev.end_time, times.start, times.end)) {
-            errors.push(`${person.name}: пересекающаяся смена в бригадах №${prev.crewId} и №${crew.id}.`);
-          }
+
+        assignments.push({
+          name,
+          nameKey: name.toLowerCase(),
+          staffId,
+          crewId: crew.id,
+          start_time: times.start,
+          end_time: times.end
         });
-        seen.set(key, [...previous, { crewId: crew.id, start_time: times.start, end_time: times.end }]);
       };
 
-      crew.paramedics.forEach(person => checkPerson(person, "paramedic"));
-      crew.drivers.forEach(person => checkPerson(person, "driver"));
+      crew.paramedics.forEach(person => collectPerson(person, "paramedic"));
+      crew.drivers.forEach(person => collectPerson(person, "driver"));
     });
+
+    for (let i = 0; i < assignments.length; i += 1) {
+      for (let j = i + 1; j < assignments.length; j += 1) {
+        const a = assignments[i];
+        const b = assignments[j];
+        const samePerson =
+          (a.staffId && b.staffId && a.staffId === b.staffId) ||
+          a.nameKey === b.nameKey;
+
+        if (
+          samePerson &&
+          a.crewId !== b.crewId &&
+          intervalsOverlap(a.start_time, a.end_time, b.start_time, b.end_time)
+        ) {
+          errors.push(
+            `${b.name}: пересекающаяся смена в бригадах №${a.crewId} и №${b.crewId}.`
+          );
+        }
+      }
+    }
+
     return { errors: [...new Set(errors)], warnings: [...new Set(warnings)] };
   }, [crews, staff]);
 
