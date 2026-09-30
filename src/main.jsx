@@ -661,12 +661,22 @@ function App() {
     members: [
       ...c.paramedics.filter(p=>p.name).map(p=> {
         const times=shiftTimes(p.shift,p.start_time,p.end_time);
-        const staffId=staff.find(x=>x.role==="paramedic"&&x.full_name===p.name)?.id || p.staffId;
+        // В архиве ID сотрудника хранится в duty_members.staff_id.
+        // Сначала определяем ID по текущему ФИО, затем используем сохранённый ID.
+        const staffId =
+          staff.find(x=>x.role==="paramedic"&&x.full_name===p.name)?.id ||
+          p.staffId ||
+          p.staff_id ||
+          null;
         return {staff_id:staffId,position:"paramedic",shift:p.shift,start_time:times.start,end_time:times.end};
       }),
       ...c.drivers.filter(p=>p.name).map(p=> {
         const times=shiftTimes(p.shift,p.start_time,p.end_time);
-        const staffId=staff.find(x=>x.role==="driver"&&x.full_name===p.name)?.id || p.staffId;
+        const staffId =
+          staff.find(x=>x.role==="driver"&&x.full_name===p.name)?.id ||
+          p.staffId ||
+          p.staff_id ||
+          null;
         return {staff_id:staffId,position:"driver",shift:p.shift,start_time:times.start,end_time:times.end};
       })
     ].filter(x=>x.staff_id)
