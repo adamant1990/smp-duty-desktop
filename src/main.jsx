@@ -996,7 +996,7 @@ function App() {
               </div>
             )}
             {!editingDutyId && !viewingDuty && <div className="template-bar"><ExcelDutyImport /></div>}
-            {(dispatcher.trim() || crews.some(crew => [...crew.paramedics, ...crew.drivers].some(person => person.name?.trim()))) &&
+            {crews.some(crew => [...crew.paramedics, ...crew.drivers].some(person => person.name?.trim())) &&
               (validation.errors.length > 0 || validation.warnings.length > 0) && (
                 <div className="warning">
                   <b>Проверка наряда</b>
