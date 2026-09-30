@@ -651,7 +651,6 @@ function App() {
   const validation = useMemo(() => {
     const errors = [];
     const warnings = [];
-    const assignments = [];
     const brigadeNumbers = new Set(crews.map(c => c.id));
 
     if (crews.length !== 8 || brigadeNumbers.size !== 8 || [...brigadeNumbers].some(n => n < 1 || n > 8)) {
@@ -665,7 +664,7 @@ function App() {
       if (!paramedics.length) errors.push(`Бригада №${crew.id}: не указан ни один фельдшер.`);
       if (!drivers.length) warnings.push(`Бригада №${crew.id}: не указан водитель.`);
 
-      const collectPerson = (person, role) => {
+      const checkPerson = (person, role) => {
         const name = person.name?.trim();
         if (!name) return;
 
@@ -674,48 +673,23 @@ function App() {
           person.staff_id ||
           staff.find(x => x.role === role && x.full_name === name)?.id ||
           null;
-        const times = shiftTimes(person.shift, person.start_time, person.end_time);
 
         if (!staffId) {
           errors.push(`${name}: сотрудник не найден в справочнике.`);
         }
-
-        assignments.push({
-          name,
-          nameKey: name.toLowerCase(),
-          staffId,
-          crewId: crew.id,
-          start_time: times.start,
-          end_time: times.end
-        });
       };
 
-      crew.paramedics.forEach(person => collectPerson(person, "paramedic"));
-      crew.drivers.forEach(person => collectPerson(person, "driver"));
+      crew.paramedics.forEach(person => checkPerson(person, "paramedic"));
+      crew.drivers.forEach(person => checkPerson(person, "driver"));
     });
 
-    for (let i = 0; i < assignments.length; i += 1) {
-      for (let j = i + 1; j < assignments.length; j += 1) {
-        const a = assignments[i];
-        const b = assignments[j];
-        const samePerson =
-          (a.staffId && b.staffId && a.staffId === b.staffId) ||
-          a.nameKey === b.nameKey;
-
-        if (
-          samePerson &&
-          a.crewId !== b.crewId &&
-          intervalsOverlap(a.start_time, a.end_time, b.start_time, b.end_time)
-        ) {
-          errors.push(
-            `${b.name}: пересекающаяся смена в бригадах №${a.crewId} и №${b.crewId}.`
-          );
-        }
-      }
-    }
+    getAssignmentWarnings(crews).forEach(item => {
+      errors.push(item + ": пересекающаяся смена.");
+    });
 
     return { errors: [...new Set(errors)], warnings: [...new Set(warnings)] };
   }, [crews, staff]);
+
 
 
   function updateCrew(nextCrew) {
