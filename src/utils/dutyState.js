@@ -1,21 +1,39 @@
 import { uid, shiftTimes } from "./duty";
 import { intervalsOverlap } from "./shiftIntervals";
 
-export const cloneCrewsForForm = crews => (crews || []).map(crew => ({
-  ...crew,
-  paramedics: (crew.paramedics || []).map(p => ({
+export const cloneCrewsForForm = crews => (crews || []).map(crew => {
+  const drivers = (crew.drivers || []).map(p => ({
     ...p,
     id: uid(),
     staffId: p.staffId || p.staff_id || null,
     ...shiftTimes(p.shift, p.start_time, p.end_time)
-  })),
-  drivers: (crew.drivers || []).map(p => ({
-    ...p,
-    id: uid(),
-    staffId: p.staffId || p.staff_id || null,
-    ...shiftTimes(p.shift, p.start_time, p.end_time)
-  }))
-}));
+  }));
+
+  // Даже если в сохранённом наряде водителей не было (например,
+  // наряд был создан из Excel только с фельдшерами), при редактировании
+  // должны оставаться две пустые строки для водителей: день и ночь.
+  while (drivers.length < 2) {
+    const night = drivers.length === 1;
+    drivers.push({
+      id: uid(),
+      name: "",
+      shift: night ? "night" : "day",
+      start_time: night ? "20:00" : "08:00",
+      end_time: night ? "08:00" : "20:00"
+    });
+  }
+
+  return {
+    ...crew,
+    paramedics: (crew.paramedics || []).map(p => ({
+      ...p,
+      id: uid(),
+      staffId: p.staffId || p.staff_id || null,
+      ...shiftTimes(p.shift, p.start_time, p.end_time)
+    })),
+    drivers
+  };
+});
 
 const normalizeName = value => String(value || "").trim().toLowerCase();
 
