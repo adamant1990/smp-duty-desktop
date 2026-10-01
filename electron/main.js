@@ -80,12 +80,6 @@ function createWindow() {
     }
   });
 
-  // Restore renderer keyboard focus whenever the native window regains focus.
-  // This also covers returning from native dialogs such as window.confirm().
-  win.on("focus", () => {
-    if (!win.isDestroyed()) win.webContents.focus();
-  });
-
   ipcMain.removeHandler("window-minimize");
   ipcMain.removeHandler("window-toggle-maximize");
   ipcMain.removeHandler("window-close");
