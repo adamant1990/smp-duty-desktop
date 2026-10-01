@@ -1239,7 +1239,7 @@ function App() {
               (validation.errors.length > 0 || validation.warnings.length > 0) && (
                 <div className="warning">
                   <b>Проверка наряда</b>
-                  {validation.errors.map((item) => <div key={`error-${item}`}>Ошибка: {item}</div>)}
+                  {validation.errors.filter((item) => !item.includes("сотрудник не найден в справочнике")).map((item) => <div key={`error-${item}`}>Ошибка: {item}</div>)}
                   {validation.warnings.map((item) => <div key={`warning-${item}`}>Предупреждение: {item}</div>)}
                 </div>
               )}
