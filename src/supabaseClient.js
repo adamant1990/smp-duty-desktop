@@ -121,6 +121,9 @@ export const db = {
     list: (token) =>
       request("/rest/v1/staff?select=*&active=eq.true&order=full_name.asc", {}, token),
 
+    listAll: (token) =>
+      request("/rest/v1/staff?select=*&order=full_name.asc", {}, token),
+
     add: (row, token) =>
       request("/rest/v1/staff", {
         method: "POST",
@@ -162,7 +165,7 @@ export const db = {
   },
 
   duties: {
-    updateFull: async (dutyId, dutyDate, dispatcherId, crews, token) => {
+    updateFull: async (dutyId, dutyDate, dispatcherId, crews, token, allowPastEdit = false) => {
       const duties = await request(
         "/rest/v1/duties?id=eq." + encodeURIComponent(dutyId) + "&select=id,duty_date",
         {},
@@ -170,7 +173,7 @@ export const db = {
       );
 
       if (!duties?.[0]) throw new Error("Наряд не найден.");
-      if (dutyDate < new Date().toLocaleDateString("en-CA")) {
+      if (!allowPastEdit && dutyDate < new Date().toLocaleDateString("en-CA")) {
         throw new Error("Редактирование этого наряда уже закрыто: дата наряда прошла.");
       }
 
@@ -482,6 +485,14 @@ export const db = {
         method: "DELETE"
       }, token)
   },
+  audit: {
+    dutyHistory: (dutyId, token) =>
+      request("/rest/v1/rpc/admin_duty_audit_history", {
+        method: "POST",
+        body: JSON.stringify({ p_duty_id: dutyId })
+      }, token)
+  },
+
 
   crews: {
     list: (dutyId, token) =>
