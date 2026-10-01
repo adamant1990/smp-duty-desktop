@@ -908,13 +908,13 @@ function App() {
   async function saveDuty() {
     setError(""); setMessage("");
     const today = new Date().toLocaleDateString("en-CA");
-    if (!editingDutyId && !admin && date < today) { setError("Нельзя создать наряд на прошедшую дату."); return; }
-    if (validation.errors.length) { setError("Наряд не сохранён. Исправьте ошибки проверки: " + validation.errors.join(" ")); return; }
+    if (!editingDutyId && !admin && date < today) { setError("Нельзя создать наряд на прошедшую дату."); return false; }
+    if (validation.errors.length) { setError("Наряд не сохранён. Исправьте ошибки проверки: " + validation.errors.join(" ")); return false; }
     try {
       const token=session.access_token;
       const existing=await db.duties.findByDate(date,token);
       const conflict=(existing||[]).find(x=>x.id!==editingDutyId);
-      if(conflict){setError(`На ${formatDutyDate(date)} уже существует другой наряд. Откройте его в архиве и используйте редактирование.`);return;}
+      if(conflict){setError(`На ${formatDutyDate(date)} уже существует другой наряд. Откройте его в архиве и используйте редактирование.`);return false;}
       const dispatcherId=staff.find(x=>x.role==="dispatcher"&&x.full_name===dispatcher)?.id||null;
       if(editingDutyId){
         const payload=buildAssignments();
@@ -926,7 +926,7 @@ function App() {
         setViewingDuty(false);
         setMessage("Изменения наряда сохранены.");
         setTab("archive");
-        return;
+        return true;
       }
       const duty=(await db.duties.add({duty_date:date,dispatcher_id:dispatcherId,created_by:session.user.id},token))[0];
       const newAssignments=[];
@@ -956,7 +956,16 @@ function App() {
       clearDutyDraft(session.user.id); setDraft(null);
       await loadArchive(token);
       setMessage("Наряд сохранён в общей базе Supabase.");
-    } catch(err){setError(err?.message||"Не удалось сохранить наряд.");}
+      return true;
+    } catch(err){setError(err?.message||"Не удалось сохранить наряд."); return false;}
+  }
+
+  async function printCurrentDuty() {
+    if (!editingDutyId) {
+      const saved = await saveDuty();
+      if (!saved) return;
+    }
+    window.setTimeout(() => window.desktopApp?.print?.(), 80);
   }
 
   function editDuty(item) {
@@ -1180,7 +1189,7 @@ function App() {
                     <History size={18} /> История
                   </button>
                 )}
-                <button className="secondary" onClick={() => window.desktopApp?.print?.()}>
+                <button className="secondary" onClick={printCurrentDuty} disabled={loading}>
                   <Printer size={18} /> Печать
                 </button>
                 <button className="primary action-button" onClick={saveDuty} disabled={loading}>
