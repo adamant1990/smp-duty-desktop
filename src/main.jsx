@@ -134,6 +134,7 @@ function Login({ onReady }) {
 function SearchSelect({ value, list, placeholder, onChange }) {
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => setQuery(value), [value]);
 
@@ -144,6 +145,13 @@ function SearchSelect({ value, list, placeholder, onChange }) {
     ).slice(0, 8),
     [query, list]
   );
+
+  function choose(name) {
+    setQuery(name);
+    onChange(name);
+    setOpen(false);
+    setActiveIndex(0);
+  }
 
   return (
     <div className="search-select">
@@ -156,6 +164,7 @@ function SearchSelect({ value, list, placeholder, onChange }) {
           const nextValue = e.target.value;
           setQuery(nextValue);
           onChange(nextValue);
+          setActiveIndex(0);
           setOpen(true);
         }}
         onKeyDown={(e) => {
@@ -163,7 +172,22 @@ function SearchSelect({ value, list, placeholder, onChange }) {
             e.preventDefault();
             setQuery("");
             onChange("");
+            setActiveIndex(0);
             setOpen(true);
+            return;
+          }
+          if (!open || !options.length) return;
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setActiveIndex((index) => (index + 1) % options.length);
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActiveIndex((index) => (index - 1 + options.length) % options.length);
+          } else if (e.key === "Enter") {
+            e.preventDefault();
+            choose(options[activeIndex] || options[0]);
+          } else if (e.key === "Escape") {
+            setOpen(false);
           }
         }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
@@ -171,14 +195,12 @@ function SearchSelect({ value, list, placeholder, onChange }) {
 
       {open && options.length > 0 && (
         <div className="suggestions">
-          {options.map((name) => (
+          {options.map((name, index) => (
             <button type="button" key={name}
+              className={index === activeIndex ? "active" : ""}
+              onMouseEnter={() => setActiveIndex(index)}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                setQuery(name);
-                onChange(name);
-                setOpen(false);
-              }}>
+              onClick={() => choose(name)}>
               {name}
             </button>
           ))}
