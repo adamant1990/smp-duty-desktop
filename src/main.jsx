@@ -139,13 +139,13 @@ function SearchSelect({ value, list, placeholder, onChange }) {
 
   useEffect(() => setQuery(value), [value]);
 
-  const options = useMemo(
-    () => (query
-      ? list.filter((name) => name.toLowerCase().includes(query.toLowerCase()))
-      : list
-    ).slice(0, 8),
-    [query, list]
-  );
+  const options = useMemo(() => {
+    const source = value && !list.includes(value) ? [value, ...list] : list;
+    return (query
+      ? source.filter((name) => name.toLowerCase().includes(query.toLowerCase()))
+      : source
+    ).slice(0, 8);
+  }, [query, list, value]);
 
   function choose(name) {
     setQuery(name);
@@ -263,6 +263,13 @@ function CrewCard({ crew, paramedics, drivers, onChange, viewing = false }) {
 
 function ArchivePage({items,onEdit,onCopy,onPrint,onDelete,onHistory,admin,canEdit,loading}) {
   const [selected,setSelected]=useState(null),[query,setQuery]=useState(""),[expandedWeeks,setExpandedWeeks]=useState(null);
+
+  useEffect(() => {
+    if (selected && !items.some((item) => item.id === selected.id)) {
+      setSelected(null);
+    }
+  }, [items, selected]);
+
   const sorted=[...items].sort((a,b)=>b.date.localeCompare(a.date));
   const q=query.trim().toLowerCase();
   const filtered=useMemo(()=>!q?sorted:sorted.filter(item=>{
@@ -586,7 +593,7 @@ function App() {
     try {
       const [duties, st] = await Promise.all([
         db.duties.list(token),
-        staff.length ? Promise.resolve(staff) : db.staff.list(token)
+        db.staff.listAll(token)
       ]);
 
       const crewGroups = await Promise.all(
@@ -1003,6 +1010,10 @@ function App() {
     setError("");
     try {
       await db.duties.remove(id, session.access_token);
+      setHistoryDuty((current) => current?.id === id ? null : current);
+      setHistoryRecords([]);
+      setHistoryStaff([]);
+      setHistoryError("");
       setArchive((items) => items.filter((item) => item.id !== id));
       setMessage("Наряд удалён из архива.");
     } catch (err) {
@@ -1011,11 +1022,34 @@ function App() {
   }
 
   async function logout() {
-    await signOut();
-    setSession(null);
-    setProfileData(null);
-    setStaff([]);
-    setArchive([]);
+    try {
+      await signOut();
+    } finally {
+      if (session?.user?.id) clearDutyDraft(session.user.id);
+      setSession(null);
+      setProfileData(null);
+      setStaff([]);
+      setArchive([]);
+      setTab("duty");
+      setLoading(false);
+      setArchiveLoading(false);
+      setError("");
+      setMessage("");
+      setDate(tomorrow());
+      setDispatcher("");
+      setCrews(newCrews());
+      setEditingDutyId(null);
+      setViewingDuty(false);
+      setDraft(null);
+      setTelegramAccounts([]);
+      setTelegramLink(null);
+      setPrintDuty(null);
+      setHistoryDuty(null);
+      setHistoryRecords([]);
+      setHistoryStaff([]);
+      setHistoryLoading(false);
+      setHistoryError("");
+    }
   }
 
   if (!checked) {
