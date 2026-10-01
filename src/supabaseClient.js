@@ -192,16 +192,8 @@ export const db = {
 
       for (const crew of crews) {
         const members = Array.isArray(crew.members) ? crew.members : [];
-        const paramedic = members.find(
-          (member) => member.position === "paramedic" && member.staff_id
-        );
-        if (!paramedic) {
-          throw new Error(
-            "Нельзя сохранить наряд: в бригаде №" +
-            Number(crew.number ?? crew.id) +
-            " не определён фельдшер."
-          );
-        }
+        // Фельдшер в бригаде может отсутствовать: это допустимо при нехватке
+        // сотрудников. Но если фельдшер указан, его ID должен быть определён.
         if (members.some((member) => member.position === "paramedic" && !member.staff_id)) {
           throw new Error(
             "Нельзя сохранить наряд: не удалось определить одного из фельдшеров."
@@ -310,17 +302,12 @@ export const db = {
       }
 
       const rows = preparedCrews.flatMap((crew) => crew.members);
-      const missingParamedicBrigades = preparedCrews
-        .filter((crew) => !crew.members.some((member) => member.position === "paramedic" && member.staff_id))
-        .map((crew) => crew.brigadeNumber);
 
-      if (preparedCrews.length !== 8 || missingParamedicBrigades.length || !rows.length) {
+      // Бригада без фельдшера допустима: нехватка фельдшеров не должна
+      // блокировать редактирование и сохранение наряда.
+      if (preparedCrews.length !== 8) {
         throw new Error(
-          "Новый состав наряда не прошёл проверку. " +
-          (missingParamedicBrigades.length
-            ? "Нет фельдшера в бригадах №" + missingParamedicBrigades.join(", ") + ". "
-            : "") +
-          "Старый состав не изменён."
+          "Новый состав наряда не прошёл проверку. Старый состав не изменён."
         );
       }
 
