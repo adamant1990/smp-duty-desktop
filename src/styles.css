@@ -126,3 +126,132 @@
   .print-copy + .print-copy{border-top:1px dashed #777;padding-top:4mm;margin-top:4mm}
   .report-controls{display:none!important}.report-table-wrap{border:0;overflow:visible}.report-table th,.report-table td{border:1px solid #000}.report-table{font-size:10px}.report-details{display:block!important}.report-page .page-heading h1{font-size:17px;text-align:center}.report-page .page-heading p{display:none}
 }
+
+.archive-history-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #d7dce3;
+  background: #fff;
+  color: #27313f;
+  border-radius: 8px;
+  padding: 8px 11px;
+  cursor: pointer;
+}
+
+.archive-history-button:hover {
+  background: #f4f6f8;
+}
+
+.history-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, .48);
+}
+
+.history-modal {
+  width: min(900px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .24);
+}
+
+.history-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid #e7eaf0;
+}
+
+.history-head > div > span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: #7a8493;
+}
+
+.history-head h2 {
+  margin: 5px 0 4px;
+}
+
+.history-head p {
+  margin: 0;
+  color: #707b89;
+  font-size: 13px;
+}
+
+.history-list {
+  overflow: auto;
+  padding: 12px 20px 20px;
+}
+
+.history-entry {
+  padding: 14px 4px;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.history-entry:last-child {
+  border-bottom: 0;
+}
+
+.history-entry-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  font-size: 12px;
+  color: #7a8493;
+}
+
+.history-entry-meta b {
+  color: #27313f;
+}
+
+.history-entry-meta em {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #eef2f6;
+  color: #566170;
+  font-style: normal;
+}
+
+.history-entry-body {
+  margin-top: 7px;
+  color: #202936;
+  line-height: 1.45;
+}
+
+.history-empty {
+  padding: 50px 24px;
+  text-align: center;
+  color: #737e8d;
+}
+
+@media (max-width: 700px) {
+  .history-overlay {
+    padding: 10px;
+  }
+
+  .history-modal {
+    max-height: calc(100vh - 20px);
+  }
+
+  .history-head {
+    padding: 18px;
+  }
+
+  .history-list {
+    padding: 8px 14px 14px;
+  }
+}
