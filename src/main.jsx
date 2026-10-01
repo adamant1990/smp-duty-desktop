@@ -18,7 +18,8 @@ import {
   Save,
   Trash2,
   X,
-  FileText
+  FileText,
+  History
 } from "lucide-react";
 import "./styles.css";
 import { db, profile, restoreSession, signIn, signOut } from "./supabaseClient";
@@ -260,7 +261,7 @@ function CrewCard({ crew, paramedics, drivers, onChange, viewing = false }) {
   </article>;
 }
 
-function ArchivePage({items,onEdit,onCopy,onPrint,onDelete,admin,canEdit,loading}) {
+function ArchivePage({items,onEdit,onCopy,onPrint,onDelete,onHistory,admin,canEdit,loading}) {
   const [selected,setSelected]=useState(null),[query,setQuery]=useState(""),[expandedWeeks,setExpandedWeeks]=useState(null);
   const sorted=[...items].sort((a,b)=>b.date.localeCompare(a.date));
   const q=query.trim().toLowerCase();
@@ -290,7 +291,7 @@ function ArchivePage({items,onEdit,onCopy,onPrint,onDelete,admin,canEdit,loading
       <div className="archive-week-title" onClick={()=>toggleWeek(w.key)}><b>{open?"▼":"▶"} {w.label}</b><span>{w.items.length} наряд(ов)</span></div>
       {open&&<div className="archive-week-list">{w.items.map(item=><article className="archive-card" key={item.id} onClick={()=>setSelected(item)}>
         <div className="archive-main"><div className="archive-date">{formatDutyDate(item.date)}</div><div className="archive-info"><b>{formatDay(item.date)}</b><span>{item.crews.length} бригад · Составил: {item.dispatcher||"—"}</span></div></div>
-        <div className="archive-actions"><button className="secondary" onClick={e=>{e.stopPropagation();setSelected(item);}}><ClipboardList size={16}/> Открыть</button>{admin&&<button className="danger" onClick={e=>{e.stopPropagation();onDelete(item.id);}} title="Удалить"><Trash2 size={17}/></button>}</div>
+        <div className="archive-actions"><button className="secondary" onClick={e=>{e.stopPropagation();setSelected(item);}}><ClipboardList size={16}/> Открыть</button>{admin&&<><button className="archive-history-button" onClick={e=>{e.stopPropagation();onHistory(item);}} title="История изменений"><History size={16}/> История</button><button className="danger" onClick={e=>{e.stopPropagation();onDelete(item.id);}} title="Удалить"><Trash2 size={17}/></button></>}</div>
       </article>)}</div>}
     </section>})}</div>}
     {selected&&<div className="archive-overlay" onClick={()=>setSelected(null)}><div className="archive-preview" onClick={e=>e.stopPropagation()}>
@@ -304,6 +305,7 @@ function ArchivePage({items,onEdit,onCopy,onPrint,onDelete,admin,canEdit,loading
         <div className="archive-preview-person"><span>ВОДИТЕЛИ</span>{crew.drivers?.length?crew.drivers.map(p=><b key={p.id}>{p.name||"—"} <em>{formatArchiveShift(p)}</em></b>):<b>—</b>}</div>
       </div>)}</div>
       <div className="archive-preview-footer"><span>Составил: {selected.dispatcher||"—"}</span><div className="archive-preview-footer-actions">
+        {admin&&<button className="archive-icon-action" title="История изменений" onClick={()=>onHistory(selected)}><History size={19}/></button>}
         <button className="archive-icon-action" title="Печать" onClick={()=>onPrint(selected)}><Printer size={19}/></button>
         {canEdit&&(admin||selected.date>=new Date().toLocaleDateString("en-CA"))&&<button className="archive-icon-action" title="Редактировать" onClick={()=>{onEdit(selected);setSelected(null);}}><Pencil size={19}/></button>}
         <button className="archive-icon-action" title="Копировать наряд" onClick={()=>{onCopy(selected);setSelected(null);}}><RotateCcw size={19}/></button>
@@ -311,6 +313,105 @@ function ArchivePage({items,onEdit,onCopy,onPrint,onDelete,admin,canEdit,loading
     </div></div>}
   </div>;
 }
+
+
+function HistoryModal({ item, records, staff, loading, error, onClose }) {
+  const staffMap = Object.fromEntries((staff || []).map(person => [person.id, person.full_name]));
+
+  const actionLabel = (action) => ({
+    create: "Создание",
+    update: "Изменение",
+    delete: "Удаление"
+  }[action] || action || "Изменение");
+
+  const formatValue = (field, value) => {
+    if (value === null || value === undefined || value === "") return "—";
+    if (field === "dispatcher_id" || field === "staff_id") return staffMap[value] || String(value);
+    if (field === "duty_date") return formatDutyDate(String(value));
+    if (field === "shift") return ({
+      "24": "24 часа",
+      day: "8–20",
+      night: "20–8",
+      other: "Другое"
+    }[value] || String(value));
+    return String(value);
+  };
+
+  const describe = (record) => {
+    const data = record?.details?.data || {};
+    const oldData = data.old || null;
+    const newData = data.new || null;
+
+    if (record.entity_type === "duties" && oldData && newData) {
+      const changes = [];
+      ["duty_date", "dispatcher_id"].forEach(field => {
+        if (oldData[field] !== newData[field]) {
+          const label = field === "duty_date" ? "Дата" : "Наряд составил";
+          changes.push(`${label}: «${formatValue(field, oldData[field])}» → «${formatValue(field, newData[field])}»`);
+        }
+      });
+      return changes.length ? changes : "Изменения данных наряда";
+    }
+
+    const row = newData || oldData || data;
+    if (record.entity_type === "duty_members") {
+      const brigade = item.crews.find(c => c.dbId === row.crew_id)?.id;
+      const person = staffMap[row.staff_id] || "Сотрудник";
+      const position = row.position === "paramedic" ? "фельдшер" : "водитель";
+      const shift = formatValue("shift", row.shift);
+      if (record.action === "delete") {
+        return `Бригада №${brigade || "—"}: удалён ${position} «${person}», смена ${shift}`;
+      }
+      if (record.action === "create") {
+        return `Бригада №${brigade || "—"}: назначен ${position} «${person}», смена ${shift}`;
+      }
+      return `Бригада №${brigade || "—"}: изменён ${position} «${person}», смена ${shift}`;
+    }
+
+    if (record.entity_type === "duty_crews") {
+      return `Бригада №${(newData || oldData)?.brigade_number || "—"}: изменены данные бригады`;
+    }
+
+    return "Изменение данных наряда";
+  };
+
+  return (
+    <div className="history-overlay" onClick={onClose}>
+      <section className="history-modal" onClick={e => e.stopPropagation()}>
+        <div className="history-head">
+          <div>
+            <span>ЖУРНАЛ ИЗМЕНЕНИЙ</span>
+            <h2>Наряд на {formatDutyDate(item.date)}</h2>
+            <p>История сохраняется полностью и доступна только администраторам.</p>
+          </div>
+          <button className="icon-btn" onClick={onClose}><X size={20}/></button>
+        </div>
+
+        {loading && <div className="history-empty">Загрузка истории…</div>}
+        {!loading && error && <div className="warning">{error}</div>}
+        {!loading && !error && !records.length && (
+          <div className="history-empty">Изменений пока нет.</div>
+        )}
+
+        {!loading && !error && records.length > 0 && (
+          <div className="history-list">
+            {records.map(record => (
+              <article className="history-entry" key={record.id}>
+                <div className="history-entry-meta">
+                  <b>{record.actor_name || "Неизвестный пользователь"}</b>
+                  <span>{new Date(record.created_at).toLocaleString("ru-RU")}</span>
+                  <em>{actionLabel(record.action)}</em>
+                </div>
+                <div className="history-entry-body">{describe(record)}</div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
 
 function StaffBlock({ title, role, staff, telegramMap, onAdd, onEdit, onDeactivate, onLinkTelegram, onUnlinkTelegram, admin }) {
   const [editingId, setEditingId] = useState(null);
@@ -453,6 +554,11 @@ function App() {
   const [windowMaximized, setWindowMaximized] = useState(false);
   const [draft, setDraft] = useState(null);
   const [viewingDuty, setViewingDuty] = useState(false);
+  const [historyDuty, setHistoryDuty] = useState(null);
+  const [historyRecords, setHistoryRecords] = useState([]);
+  const [historyStaff, setHistoryStaff] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
 
   useEffect(() => {
     if (!message) return undefined;
@@ -609,6 +715,26 @@ function App() {
     () => Object.fromEntries(telegramAccounts.filter((item) => item.is_active).map((item) => [item.staff_id, item])),
     [telegramAccounts]
   );
+
+  async function openDutyHistory(item) {
+    if (!admin) return;
+    setHistoryDuty(item);
+    setHistoryRecords([]);
+    setHistoryError("");
+    setHistoryLoading(true);
+    try {
+      const [records, allStaff] = await Promise.all([
+        db.audit.dutyHistory(item.id, session.access_token),
+        db.staff.listAll(session.access_token)
+      ]);
+      setHistoryRecords(records || []);
+      setHistoryStaff(allStaff || []);
+    } catch (err) {
+      setHistoryError(err?.message || "Не удалось загрузить историю изменений.");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
 
   async function deactivateStaff(person) {
     if (!window.confirm(`Деактивировать сотрудника «${person.full_name}»?`)) return;
@@ -792,7 +918,7 @@ function App() {
       const dispatcherId=staff.find(x=>x.role==="dispatcher"&&x.full_name===dispatcher)?.id||null;
       if(editingDutyId){
         const payload=buildAssignments();
-        await db.duties.updateFull(editingDutyId,date,dispatcherId,payload,token);
+        await db.duties.updateFull(editingDutyId,date,dispatcherId,payload,token,admin);
         await loadArchive(token);
         clearDutyDraft(session.user.id);
         setDraft(null);
@@ -970,6 +1096,7 @@ function App() {
             onCopy={copyDuty}
             onPrint={printArchiveDuty}
             onDelete={deleteDuty}
+            onHistory={openDutyHistory}
             admin={admin}
             canEdit={canEditDuty}
             loading={archiveLoading}
@@ -1059,6 +1186,17 @@ function App() {
 
       {tab === "duty" && (
         <PrintView date={date} dispatcher={dispatcher} crews={crews} />
+      )}
+
+      {historyDuty && admin && (
+        <HistoryModal
+          item={historyDuty}
+          records={historyRecords}
+          staff={historyStaff}
+          loading={historyLoading}
+          error={historyError}
+          onClose={() => setHistoryDuty(null)}
+        />
       )}
 
       {printDuty && (
