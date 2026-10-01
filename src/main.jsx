@@ -185,12 +185,11 @@ function SearchSelect({ value, list, placeholder, onChange }) {
   useEffect(() => setQuery(value), [value]);
 
   const options = useMemo(() => {
-    const source = value && !list.includes(value) ? [value, ...list] : list;
     return (query
-      ? source.filter((name) => name.toLowerCase().includes(query.toLowerCase()))
-      : source
+      ? list.filter((name) => name.toLowerCase().includes(query.toLowerCase()))
+      : list
     ).slice(0, 8);
-  }, [query, list, value]);
+  }, [query, list]);
 
   function choose(name) {
     setQuery(name);
