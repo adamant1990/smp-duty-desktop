@@ -1172,6 +1172,14 @@ function App() {
                 {editingDutyId ? "Отменить редактирование" : "Новый чистый наряд"}
               </button>
               <div className="actions">
+                {admin && editingDutyId && (
+                  <button className="secondary" onClick={() => {
+                    const item = archive.find((entry) => entry.id === editingDutyId);
+                    if (item) openDutyHistory(item);
+                  }}>
+                    <History size={18} /> История
+                  </button>
+                )}
                 <button className="secondary" onClick={() => window.desktopApp?.print?.()}>
                   <Printer size={18} /> Печать
                 </button>
