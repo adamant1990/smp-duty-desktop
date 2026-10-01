@@ -74,16 +74,44 @@ const formatArchiveShift = (person) => {
 function Login({ onReady }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const saved = await window.desktopApp?.credentials?.load?.();
+        if (!active || !saved) return;
+        setEmail(saved.email || "");
+        setPassword(saved.password || "");
+        setRemember(Boolean(saved.email || saved.password));
+      } catch {
+        // Сохранённые данные необязательны: вход работает и без них.
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   async function submit(event) {
     event.preventDefault();
     setBusy(true);
     setError("");
 
+    const normalizedEmail = email.trim();
+
     try {
-      onReady(await signIn(email.trim(), password));
+      const session = await signIn(normalizedEmail, password);
+      if (remember) {
+        await window.desktopApp?.credentials?.save?.({
+          email: normalizedEmail,
+          password
+        });
+      } else {
+        await window.desktopApp?.credentials?.clear?.();
+      }
+      onReady(session);
     } catch (err) {
       setError(err?.message || "Не удалось выполнить вход.");
     } finally {
@@ -94,6 +122,14 @@ function Login({ onReady }) {
   return (
     <main className="login-page">
       <section className="login-card">
+        <div className="login-window-controls" aria-label="Управление окном">
+          <button type="button" className="login-window-control" title="Свернуть" onClick={() => window.desktopApp?.minimize?.()}>
+            <Minimize2 size={14} />
+          </button>
+          <button type="button" className="login-window-control close" title="Закрыть" onClick={() => window.desktopApp?.close?.()}>
+            <X size={16} />
+          </button>
+        </div>
         <div className="login-brand">
           <div className="login-icon"><Monitor size={25} /></div>
           <div>
@@ -118,6 +154,15 @@ function Login({ onReady }) {
             Пароль
             <input type="password" autoComplete="current-password" required value={password}
               onChange={(e) => setPassword(e.target.value)} placeholder="Введите пароль" />
+          </label>
+
+          <label className="remember-login">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+            />
+            <span>Запомнить логин и пароль</span>
           </label>
 
           {error && <div className="warning">{error}</div>}
