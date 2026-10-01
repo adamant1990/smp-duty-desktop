@@ -908,7 +908,7 @@ function App() {
   async function saveDuty() {
     setError(""); setMessage("");
     const today = new Date().toLocaleDateString("en-CA");
-    if (!editingDutyId && date < today) { setError("Нельзя создать наряд на прошедшую дату."); return; }
+    if (!editingDutyId && !admin && date < today) { setError("Нельзя создать наряд на прошедшую дату."); return; }
     if (validation.errors.length) { setError("Наряд не сохранён. Исправьте ошибки проверки: " + validation.errors.join(" ")); return; }
     try {
       const token=session.access_token;
