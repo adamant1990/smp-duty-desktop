@@ -7,5 +7,10 @@ contextBridge.exposeInMainWorld("desktopApp", {
   print: () => ipcRenderer.invoke("print-document"),
   minimize: () => ipcRenderer.invoke("window-minimize"),
   toggleMaximize: () => ipcRenderer.invoke("window-toggle-maximize"),
-  close: () => ipcRenderer.invoke("window-close")
+  close: () => ipcRenderer.invoke("window-close"),
+  credentials: {
+    load: () => ipcRenderer.invoke("credentials-load"),
+    save: (credentials) => ipcRenderer.invoke("credentials-save", credentials),
+    clear: () => ipcRenderer.invoke("credentials-clear")
+  }
 });
