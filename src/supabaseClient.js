@@ -50,6 +50,31 @@ async function request(path, options = {}, token) {
   return data;
 }
 
+// Supabase REST по умолчанию возвращает не более 1000 строк за запрос.
+// Загружаем назначения небольшими группами ID бригад, чтобы архив и
+// редактирование старых нарядов не теряли сотрудников при большом объёме.
+async function listDutyMembersByCrewIds(crewIds, token, select = "*") {
+  const uniqueIds = [...new Set((crewIds || []).filter(Boolean))];
+  if (!uniqueIds.length) return [];
+
+  const chunkSize = 40;
+  const chunks = [];
+  for (let i = 0; i < uniqueIds.length; i += chunkSize) {
+    chunks.push(uniqueIds.slice(i, i + chunkSize));
+  }
+
+  const results = await Promise.all(chunks.map((chunk) => {
+    const ids = chunk.map(encodeURIComponent).join(",");
+    return request(
+      `/rest/v1/duty_members?crew_id=in.(${ids})&select=${select}`,
+      {},
+      token
+    );
+  }));
+
+  return results.flat();
+}
+
 export async function signIn(email, password) {
   const data = await request(
     "/auth/v1/token?grant_type=password",
@@ -234,15 +259,11 @@ export const db = {
       );
 
       const oldCrewIds = (existingCrews || []).map((crew) => crew.id);
-      const oldMembers = oldCrewIds.length
-        ? await request(
-            "/rest/v1/duty_members?crew_id=in.(" +
-            oldCrewIds.map(encodeURIComponent).join(",") +
-            ")&select=crew_id,staff_id,position,shift,start_time,end_time",
-            {},
-            token
-          )
-        : [];
+      const oldMembers = await listDutyMembersByCrewIds(
+        oldCrewIds,
+        token,
+        "crew_id,staff_id,position,shift,start_time,end_time"
+      );
 
       const oldCrewMap = new Map(
         (existingCrews || []).map((crew) => [crew.id, Number(crew.brigade_number)])
@@ -338,12 +359,10 @@ export const db = {
           body: JSON.stringify(rows)
         }, token);
 
-        const savedMembers = await request(
-          "/rest/v1/duty_members?crew_id=in.(" +
-          preparedCrews.map((crew) => encodeURIComponent(crew.crewId)).join(",") +
-          ")&select=id,crew_id,staff_id,position,shift,start_time,end_time",
-          {},
-          token
+        const savedMembers = await listDutyMembersByCrewIds(
+          preparedCrews.map((crew) => crew.crewId),
+          token,
+          "id,crew_id,staff_id,position,shift,start_time,end_time"
         );
 
         if (!Array.isArray(savedMembers) || savedMembers.length !== rows.length) {
@@ -510,11 +529,8 @@ export const db = {
   },
 
   members: {
-    list: (crewIds, token) => {
-      if (!crewIds.length) return Promise.resolve([]);
-      const ids = crewIds.map(encodeURIComponent).join(",");
-      return request(`/rest/v1/duty_members?crew_id=in.(${ids})&select=*`, {}, token);
-    },
+    list: (crewIds, token) =>
+      listDutyMembersByCrewIds(crewIds, token),
 
     addMany: (rows, token) =>
       rows.length
