@@ -743,9 +743,7 @@ function App() {
   useEffect(() => {
     if (!session?.user?.id) return;
     const saved = loadDutyDraft(session.user.id);
-    const hasEmployees = saved?.crews?.some(c => c.paramedics?.some(p => p.name) || c.drivers?.some(d => d.name));
-    if (hasEmployees) setDraft(saved);
-    else if (saved) clearDutyDraft(session.user.id);
+    if (saved && Array.isArray(saved.crews)) setDraft(saved);
   }, [session?.user?.id]);
 
   useEffect(() => {
@@ -1066,10 +1064,14 @@ function App() {
   }
 
   async function logout() {
+    // Сохраняем текущий незавершённый состав перед завершением сессии.
+    if (session?.user?.id && !editingDutyId && !viewingDuty) {
+      const hasEmployees = crews.some(c => c.paramedics.some(p => p.name?.trim()) || c.drivers.some(d => d.name?.trim()));
+      if (hasEmployees) saveDutyDraft(session.user.id, { date, dispatcher, crews });
+    }
     try {
       await signOut();
     } finally {
-      if (session?.user?.id) clearDutyDraft(session.user.id);
       setSession(null);
       setProfileData(null);
       setStaff([]);
