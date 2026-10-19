@@ -748,11 +748,13 @@ function App() {
 
   useEffect(() => {
     if (!session?.user?.id || editingDutyId || viewingDuty) return;
-    const hasEmployees = crews.some(c => c.paramedics.some(p => p.name) || c.drivers.some(d => d.name));
-    if (!hasEmployees) return;
+    const hasEmployees = crews.some(c => c.paramedics.some(p => p.name?.trim()) || c.drivers.some(d => d.name?.trim()));
+    const defaultDispatcher = staff.find(item => item.role === "dispatcher")?.full_name || "";
+    const hasFormChanges = date !== tomorrow() || (dispatcher && dispatcher !== defaultDispatcher);
+    if (!hasEmployees && !hasFormChanges) return;
     const timer = window.setTimeout(() => saveDutyDraft(session.user.id, {date, dispatcher, crews}), 150);
     return () => window.clearTimeout(timer);
-  }, [session?.user?.id, editingDutyId, viewingDuty, date, dispatcher, crews]);
+  }, [session?.user?.id, editingDutyId, viewingDuty, date, dispatcher, crews, staff]);
 
 
   const paramedics = staff.filter((item) => item.role === "paramedic").map((item) => item.full_name);
@@ -1067,7 +1069,9 @@ function App() {
     // Сохраняем текущий незавершённый состав перед завершением сессии.
     if (session?.user?.id && !editingDutyId && !viewingDuty) {
       const hasEmployees = crews.some(c => c.paramedics.some(p => p.name?.trim()) || c.drivers.some(d => d.name?.trim()));
-      if (hasEmployees) saveDutyDraft(session.user.id, { date, dispatcher, crews });
+      const defaultDispatcher = staff.find(item => item.role === "dispatcher")?.full_name || "";
+      const hasFormChanges = date !== tomorrow() || (dispatcher && dispatcher !== defaultDispatcher);
+      if (hasEmployees || hasFormChanges) saveDutyDraft(session.user.id, { date, dispatcher, crews });
     }
     try {
       await signOut();
