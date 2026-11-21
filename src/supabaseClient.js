@@ -76,29 +76,50 @@ async function listDutyMembersByCrewIds(crewIds, token, select = "*") {
 }
 
 export async function signIn(email, password) {
-  // Не оставляем окно входа в бесконечном ожидании ответа Supabase.
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  // При кратковременном обрыве сети автоматически повторяем вход один раз.
+  // Ошибки логина/пароля (HTTP 400/401) повторять бессмысленно.
+  const attempts = 2;
+  let lastError = null;
 
-  try {
-    const data = await request(
-      "/auth/v1/token?grant_type=password",
-      {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-        signal: controller.signal
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+
+    try {
+      const data = await request(
+        "/auth/v1/token?grant_type=password",
+        {
+          method: "POST",
+          body: JSON.stringify({ email, password }),
+          signal: controller.signal
+        }
+      );
+      saveSession(data);
+      return data;
+    } catch (error) {
+      lastError = error;
+      const retryable =
+        error?.name === "AbortError" ||
+        error instanceof TypeError ||
+        !error?.status ||
+        error.status === 429 ||
+        error.status >= 500;
+
+      if (!retryable || attempt === attempts) {
+        if (error?.name === "AbortError") {
+          throw new Error("Не удалось связаться с сервером авторизации. Проверьте интернет/VPN и повторите попытку.");
+        }
+        throw error;
       }
-    );
-    saveSession(data);
-    return data;
-  } catch (error) {
-    if (error?.name === "AbortError") {
-      throw new Error("Не удалось связаться с сервером авторизации за 15 секунд. Проверьте интернет/VPN и повторите попытку.");
+    } finally {
+      clearTimeout(timeout);
     }
-    throw error;
-  } finally {
-    clearTimeout(timeout);
+
+    // Небольшая пауза даёт сети время восстановиться перед повтором.
+    await new Promise((resolve) => setTimeout(resolve, 700));
   }
+
+  throw lastError || new Error("Не удалось выполнить вход.");
 }
 
 export async function restoreSession() {
