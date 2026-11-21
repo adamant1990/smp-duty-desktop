@@ -76,12 +76,29 @@ async function listDutyMembersByCrewIds(crewIds, token, select = "*") {
 }
 
 export async function signIn(email, password) {
-  const data = await request(
-    "/auth/v1/token?grant_type=password",
-    { method: "POST", body: JSON.stringify({ email, password }) }
-  );
-  saveSession(data);
-  return data;
+  // Не оставляем окно входа в бесконечном ожидании ответа Supabase.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const data = await request(
+      "/auth/v1/token?grant_type=password",
+      {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+        signal: controller.signal
+      }
+    );
+    saveSession(data);
+    return data;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Не удалось связаться с сервером авторизации за 15 секунд. Проверьте интернет/VPN и повторите попытку.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function restoreSession() {
