@@ -88,29 +88,49 @@ export async function restoreSession() {
   const stored = getSession();
   if (!stored?.access_token) return null;
 
-  try {
-    await request("/auth/v1/user", {}, stored.access_token);
-    return stored;
-  } catch (error) {
-    if (error.status !== 401 || !stored.refresh_token) {
-      clearSession();
-      return null;
-    }
+  // Не держим окно входа бесконечно, если сеть или Supabase не отвечают.
+  // AbortController также прерывает зависший запрос обновления токена.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  const requestOptions = { signal: controller.signal };
 
+  try {
     try {
-      const refreshed = await request(
-        "/auth/v1/token?grant_type=refresh_token",
-        {
-          method: "POST",
-          body: JSON.stringify({ refresh_token: stored.refresh_token })
+      await request("/auth/v1/user", requestOptions, stored.access_token);
+      return stored;
+    } catch (error) {
+      // При временной сетевой ошибке оставляем сохранённую сессию:
+      // пользователь сможет повторить вход, когда соединение восстановится.
+      if (error.status !== 401) return null;
+
+      if (!stored.refresh_token) {
+        clearSession();
+        return null;
+      }
+
+      try {
+        const refreshed = await request(
+          "/auth/v1/token?grant_type=refresh_token",
+          {
+            ...requestOptions,
+            method: "POST",
+            body: JSON.stringify({ refresh_token: stored.refresh_token })
+          }
+        );
+        saveSession(refreshed);
+        return refreshed;
+      } catch (refreshError) {
+        // Удаляем сессию только если сервер явно отверг refresh-токен.
+        // Тайм-аут, отсутствие интернета и ошибки сервера не должны
+        // разлогинивать пользователя.
+        if (refreshError.status === 400 || refreshError.status === 401) {
+          clearSession();
         }
-      );
-      saveSession(refreshed);
-      return refreshed;
-    } catch {
-      clearSession();
-      return null;
+        return null;
+      }
     }
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
