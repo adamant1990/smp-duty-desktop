@@ -151,17 +151,27 @@ export async function restoreSession() {
   }
 }
 
-export async function signOut() {
+export function signOut() {
   const stored = getSession();
 
-  try {
-    if (stored?.access_token) {
-      await request("/auth/v1/logout", { method: "POST" }, stored.access_token);
-    }
-  } catch {
-    // Локальную сессию всё равно очищаем.
-  } finally {
-    clearSession();
+  // Локальный выход не должен зависеть от доступности Supabase.
+  // Токен сохраняем в переменной до очистки localStorage, чтобы при
+  // необходимости отправить серверный logout в фоне.
+  clearSession();
+
+  if (stored?.access_token) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+
+    request(
+      "/auth/v1/logout",
+      { method: "POST", signal: controller.signal },
+      stored.access_token
+    )
+      .catch(() => {
+        // Серверный logout необязателен для локального завершения сессии.
+      })
+      .finally(() => clearTimeout(timeout));
   }
 }
 
