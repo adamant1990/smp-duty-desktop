@@ -306,7 +306,7 @@ function CrewCard({ crew, paramedics, drivers, onChange, viewing = false }) {
 }
 
 function ArchivePage({items,onEdit,onCopy,onPrint,onDelete,onHistory,admin,canEdit,loading}) {
-  const [selected,setSelected]=useState(null),[query,setQuery]=useState(""),[expandedWeeks,setExpandedWeeks]=useState(null);
+  const [selected,setSelected]=useState(null),[query,setQuery]=useState(""),[expandedMonths,setExpandedMonths]=useState(null);
 
   useEffect(() => {
     if (selected && !items.some((item) => item.id === selected.id)) {
@@ -320,26 +320,25 @@ function ArchivePage({items,onEdit,onCopy,onPrint,onDelete,onHistory,admin,canEd
     const values=[item.date,formatDutyDate(item.date),formatDay(item.date),item.dispatcher,...item.crews.flatMap(c=>[...(c.paramedics||[]),...(c.drivers||[])].map(p=>p.name))];
     return values.some(v=>String(v||"").toLowerCase().includes(q));
   }),[items,q]);
-  const weeks=filtered.reduce((acc,item)=>{
-    const d=new Date(item.date+"T00:00:00"),day=(d.getDay()+6)%7,m=new Date(d);
-    m.setDate(d.getDate()-day);const key=m.toLocaleDateString("en-CA");
-    const sun=new Date(m);sun.setDate(m.getDate()+6);
-    if(!acc[key])acc[key]={key,label:`${m.toLocaleDateString("ru-RU",{day:"2-digit",month:"long"})} — ${sun.toLocaleDateString("ru-RU",{day:"2-digit",month:"long",year:"numeric"})}`,items:[]};
+  const months=filtered.reduce((acc,item)=>{
+    const d=new Date(item.date+"T00:00:00");
+    const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+    if(!acc[key])acc[key]={key,label:d.toLocaleDateString("ru-RU",{month:"long",year:"numeric"}),items:[]};
     acc[key].items.push(item);return acc;
   },{});
-  const weekList=Object.values(weeks),latest=weekList[0]?.key;
-  const openWeek=key=>expandedWeeks?expandedWeeks.has(key):key===latest;
-  const toggleWeek=key=>setExpandedWeeks(prev=>{const next=new Set(prev||[latest]);next.has(key)?next.delete(key):next.add(key);return next;});
+  const monthList=Object.values(months),latest=monthList[0]?.key;
+  const openMonth=key=>expandedMonths?expandedMonths.has(key):key===latest;
+  const toggleMonth=key=>setExpandedMonths(prev=>{const next=new Set(prev||[latest]);next.has(key)?next.delete(key):next.add(key);return next;});
   const ordered=[...filtered].sort((a,b)=>a.date.localeCompare(b.date));
   const idx=selected?ordered.findIndex(x=>x.id===selected.id):-1;
   const move=dir=>{const n=idx+dir;if(n>=0&&n<ordered.length)setSelected(ordered[n]);};
   return <div className="archive-page">
-    <div className="page-heading archive-heading"><div><h1>Наряды</h1><p>Сохранённые наряды сгруппированы по неделям.</p></div>
+    <div className="page-heading archive-heading"><div><h1>Наряды</h1><p>Сохранённые наряды сгруппированы по месяцам.</p></div>
       <div className="archive-search"><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Поиск по дате, диспетчеру, фельдшеру или водителю"/>{query&&<button className="icon-btn" onClick={()=>setQuery("")}>×</button>}</div>
     </div>
     {loading?<div className="empty">Загрузка архива…</div>:!items.length?<div className="empty"><Archive size={38}/><h2>Нарядов пока нет</h2><p>Сохраните первый наряд.</p></div>:!filtered.length?<div className="empty"><h2>Ничего не найдено</h2><p>Измените запрос.</p></div>:
-    <div className="archive-weeks">{weekList.map(w=>{const open=openWeek(w.key);return <section className="archive-week" key={w.key}>
-      <div className="archive-week-title" onClick={()=>toggleWeek(w.key)}><b>{open?"▼":"▶"} {w.label}</b><span>{w.items.length} наряд(ов)</span></div>
+    <div className="archive-weeks">{monthList.map(w=>{const open=openMonth(w.key);return <section className="archive-week" key={w.key}>
+      <div className="archive-week-title" onClick={()=>toggleMonth(w.key)}><b>{open?"▼":"▶"} {w.label}</b><span>{w.items.length} наряд(ов)</span></div>
       {open&&<div className="archive-week-list">{w.items.map(item=><article className="archive-card" key={item.id} onClick={()=>setSelected(item)}>
         <div className="archive-main"><div className="archive-date">{formatDutyDate(item.date)}</div><div className="archive-info"><b>{formatDay(item.date)}</b><span>{item.crews.length} бригад · Составил: {item.dispatcher||"—"}</span></div></div>
         <div className="archive-actions"><button className="secondary" onClick={e=>{e.stopPropagation();setSelected(item);}}><ClipboardList size={16}/> Открыть</button>{admin&&<><button className="archive-history-button" onClick={e=>{e.stopPropagation();onHistory(item);}} title="История изменений"><History size={16}/> История</button><button className="danger" onClick={e=>{e.stopPropagation();onDelete(item.id);}} title="Удалить"><Trash2 size={17}/></button></>}</div>
@@ -590,6 +589,7 @@ function App() {
   const [profileData, setProfileData] = useState(null);
   const [staff, setStaff] = useState([]);
   const [archive, setArchive] = useState([]);
+  const [archiveLoaded, setArchiveLoaded] = useState(false);
   const [tab, setTab] = useState("duty");
   const [loading, setLoading] = useState(false);
   const [archiveLoading, setArchiveLoading] = useState(false);
@@ -681,6 +681,7 @@ function App() {
       }));
 
       setArchive(items);
+      setArchiveLoaded(true);
     } catch (err) {
       setError(err?.message || "Не удалось загрузить архив.");
     } finally {
@@ -721,7 +722,6 @@ function App() {
           ""
         );
 
-        await loadArchive(session.access_token);
       } catch (err) {
         if (active) setError(err?.message || "Не удалось загрузить данные.");
       } finally {
@@ -735,10 +735,10 @@ function App() {
   }, [session]);
 
   useEffect(() => {
-    if (session?.access_token && tab === "archive") {
+    if (session?.access_token && tab === "archive" && !archiveLoaded) {
       loadArchive(session.access_token);
     }
-  }, [tab]);
+  }, [tab, session, archiveLoaded]);
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -1080,6 +1080,7 @@ function App() {
       setProfileData(null);
       setStaff([]);
       setArchive([]);
+      setArchiveLoaded(false);
       setTab("duty");
       setLoading(false);
       setArchiveLoading(false);
