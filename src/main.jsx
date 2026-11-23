@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Archive,
@@ -592,6 +592,8 @@ function App() {
   const [archiveLoaded, setArchiveLoaded] = useState(false);
   const [tab, setTab] = useState("duty");
   const [loading, setLoading] = useState(false);
+  const [savingDuty, setSavingDuty] = useState(false);
+  const saveInProgressRef = useRef(false);
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -957,10 +959,13 @@ function App() {
   }));
 
   async function saveDuty() {
+    if (saveInProgressRef.current) return false;
     setError(""); setMessage("");
     const today = new Date().toLocaleDateString("en-CA");
     if (!editingDutyId && !admin && date < today) { setError("Нельзя создать наряд на прошедшую дату."); return false; }
     if (validation.errors.length) { setError("Наряд не сохранён. Исправьте ошибки проверки: " + validation.errors.join(" ")); return false; }
+    saveInProgressRef.current = true;
+    setSavingDuty(true);
     try {
       const token=session.access_token;
       const existing=await db.duties.findByDate(date,token);
@@ -1009,6 +1014,10 @@ function App() {
       setMessage("Наряд сохранён в общей базе Supabase.");
       return true;
     } catch(err){setError(err?.message||"Не удалось сохранить наряд."); return false;}
+    finally {
+      saveInProgressRef.current = false;
+      setSavingDuty(false);
+    }
   }
 
   async function printCurrentDuty() {
@@ -1277,7 +1286,7 @@ function App() {
                 <button className="secondary" onClick={printCurrentDuty} disabled={loading}>
                   <Printer size={18} /> Печать
                 </button>
-                <button className="primary action-button" onClick={saveDuty} disabled={loading}>
+                <button className="primary action-button" onClick={saveDuty} disabled={loading || savingDuty}>
                   <Save size={18} /> {editingDutyId ? "Сохранить изменения" : "Сохранить в архив"}
                 </button>
               </div>
