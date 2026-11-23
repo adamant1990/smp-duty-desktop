@@ -392,7 +392,7 @@ export const db = {
       // Notify only when the database confirms that this save changed data.
       // Repeated identical saves become no-ops after the first transaction.
       if (
-        atomicResult?.changed &&
+        atomicResult?.members_changed &&
         atomicResult?.old_duty_date === dutyDate
       ) {
         try {
