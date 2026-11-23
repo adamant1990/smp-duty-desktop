@@ -1283,7 +1283,7 @@ function App() {
                     <History size={18} /> История
                   </button>
                 )}
-                <button className="secondary" onClick={printCurrentDuty} disabled={loading}>
+                <button className="secondary" onClick={printCurrentDuty} disabled={loading || savingDuty}>
                   <Printer size={18} /> Печать
                 </button>
                 <button className="primary action-button" onClick={saveDuty} disabled={loading || savingDuty}>
