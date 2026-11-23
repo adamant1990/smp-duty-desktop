@@ -299,8 +299,6 @@ export const db = {
         }
       }
 
-      const oldDutyDate = duties[0].duty_date || null;
-
       const dateConflicts = await request(
         "/rest/v1/duties?duty_date=eq." +
         encodeURIComponent(dutyDate) +
@@ -325,27 +323,6 @@ export const db = {
       const existingByNumber = new Map(
         (existingCrews || []).map((crew) => [Number(crew.brigade_number), crew.id])
       );
-
-      const oldCrewIds = (existingCrews || []).map((crew) => crew.id);
-      const oldMembers = await listDutyMembersByCrewIds(
-        oldCrewIds,
-        token,
-        "crew_id,staff_id,position,shift,start_time,end_time"
-      );
-
-      const oldCrewMap = new Map(
-        (existingCrews || []).map((crew) => [crew.id, Number(crew.brigade_number)])
-      );
-
-      const oldAssignments = (oldMembers || []).map((member) => ({
-        crew_id: member.crew_id,
-        staff_id: member.staff_id,
-        position: member.position,
-        shift: member.shift,
-        start_time: member.start_time,
-        end_time: member.end_time,
-        brigade_number: oldCrewMap.get(member.crew_id)
-      }));
 
       // ВАЖНО: сначала полностью подготавливаем новые данные.
       // Ни одна старая запись до этого места не удаляется.
@@ -400,120 +377,32 @@ export const db = {
         );
       }
 
-      try {
-        // Обновляем сам наряд только после полной проверки нового состава.
-        await request("/rest/v1/duties?id=eq." + encodeURIComponent(dutyId), {
-          method: "PATCH",
-          headers: { Prefer: "return=minimal" },
-          body: JSON.stringify({
-            duty_date: dutyDate,
-            dispatcher_id: dispatcherId
-          })
-        }, token);
+      // One database transaction replaces the complete assignment set.
+      // The duty row lock serializes concurrent saves of the same duty.
+      const atomicResult = await request("/rest/v1/rpc/admin_replace_duty_members", {
+        method: "POST",
+        body: JSON.stringify({
+          p_duty_id: dutyId,
+          p_duty_date: dutyDate,
+          p_dispatcher_id: dispatcherId,
+          p_members: rows
+        })
+      }, token);
 
-        // Меняем только сотрудников. Старые duty_crews НЕ удаляем.
-        if (oldCrewIds.length) {
-          await request(
-            "/rest/v1/duty_members?crew_id=in.(" +
-            oldCrewIds.map(encodeURIComponent).join(",") +
-            ")",
-            { method: "DELETE" },
-            token
-          );
-        }
-
-        await request("/rest/v1/duty_members", {
-          method: "POST",
-          body: JSON.stringify(rows)
-        }, token);
-
-        const savedMembers = await listDutyMembersByCrewIds(
-          preparedCrews.map((crew) => crew.crewId),
-          token,
-          "id,crew_id,staff_id,position,shift,start_time,end_time"
-        );
-
-        if (!Array.isArray(savedMembers) || savedMembers.length !== rows.length) {
-          throw new Error(
-            "Состав наряда записан не полностью. Выполняется восстановление старого состава."
-          );
-        }
-
-        // Если старые бригады были лишними, удаляем их только после успешной
-        // проверки нового состава. При ошибке весь блок ниже попадёт в catch.
-        const used = new Set(brigadeNumbers);
-        const unusedCrewIds = (existingCrews || [])
-          .filter((crew) => !used.has(Number(crew.brigade_number)))
-          .map((crew) => crew.id);
-
-        if (unusedCrewIds.length) {
-          await request(
-            "/rest/v1/duty_crews?id=in.(" +
-            unusedCrewIds.map(encodeURIComponent).join(",") +
-            ")",
-            { method: "DELETE" },
-            token
-          );
-        }
-      } catch (error) {
-        // REST-запросы не являются одной общей транзакцией.
-        // Поэтому при ошибке возвращаем старых сотрудников вручную.
-        try {
-          await request(
-            "/rest/v1/duty_members?crew_id=in.(" +
-            preparedCrews.map((crew) => encodeURIComponent(crew.crewId)).join(",") +
-            ")",
-            { method: "DELETE" },
-            token
-          );
-
-          if (oldAssignments.length) {
-            await request("/rest/v1/duty_members", {
-              method: "POST",
-              body: JSON.stringify(
-                oldAssignments.map((row) => ({
-                  crew_id: row.crew_id,
-                  staff_id: row.staff_id,
-                  position: row.position,
-                  shift: row.shift,
-                  start_time: row.start_time,
-                  end_time: row.end_time
-                }))
-              )
-            }, token);
-          }
-        } catch (restoreError) {
-          console.error("Не удалось автоматически восстановить старый состав:", restoreError);
-        }
-
-        throw error;
-      }
-
-      if (oldDutyDate === dutyDate) {
+      // Notify only when the database confirms that this save changed data.
+      // Repeated identical saves become no-ops after the first transaction.
+      if (
+        atomicResult?.changed &&
+        atomicResult?.old_duty_date === dutyDate
+      ) {
         try {
           await request("/functions/v1/telegram-duty-changes", {
             method: "POST",
             body: JSON.stringify({
               duty_id: dutyId,
               duty_date: dutyDate,
-              old_members: oldAssignments.map((row) => ({
-                staff_id: row.staff_id,
-                position: row.position,
-                shift: row.shift,
-                start_time: row.start_time,
-                end_time: row.end_time,
-                brigade_number: row.brigade_number
-              })),
-              new_members: preparedCrews.flatMap((crew) =>
-                crew.members.map((row) => ({
-                  staff_id: row.staff_id,
-                  position: row.position,
-                  shift: row.shift,
-                  start_time: row.start_time,
-                  end_time: row.end_time,
-                  brigade_number: crew.brigadeNumber
-                }))
-              )
+              old_members: atomicResult.old_members || [],
+              new_members: atomicResult.new_members || []
             })
           }, token);
         } catch (e) {
