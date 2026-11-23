@@ -413,9 +413,10 @@ export const db = {
       return {
         success: true,
         dutyId,
-        oldDutyDate,
-        crewCount: preparedCrews.length,
-        memberCount: rows.length
+        oldDutyDate: atomicResult?.old_duty_date ?? null,
+        changed: Boolean(atomicResult?.changed),
+        crewCount: atomicResult?.crew_count ?? preparedCrews.length,
+        memberCount: atomicResult?.member_count ?? rows.length
       };
     },
 
